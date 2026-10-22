@@ -29,10 +29,24 @@ f.onload = async () => {
     $("#snap-note").value = "nota";
     $("#snap").click();
     check(await until(() => $("#snaps").children.length >= 1), "captura guardada");
+    // invert while recording: past live data and already-saved readings flip too
+    $("#rec-name").value = "inv";
+    $("#rec-start").click();
+    await sleep(1500);
+    const n0 = w.eval("live.length");
     $("#inv-btn").click();
-    await sleep(1200);
+    await sleep(1500);
+    $("#rec-stop").click();
+    await sleep(500);
     check($("#value").textContent.startsWith("-") && $("#flags").textContent.includes("INV"), "invertir: " + $("#value").textContent);
+    check(w.eval("live.length") >= n0 && w.eval("live.every(r => r.value < 0)"), "invertir conserva y corrige la gráfica");
+    const invSes = (await w.DB.sessions()).find((s) => s.name === "inv");
+    const invRows = await w.DB.readings(invSes.id);
+    check(invRows.length >= 4 && invRows.every((r) => r.value < 0 && r.flags.includes("INV")) && invSes.max < 0,
+      `invertir corrige lo ya grabado (${invRows.length} lecturas)`);
     $("#inv-btn").click();
+    await sleep(800);
+    check(w.eval("live.every(r => r.value > 0 && !r.flags.includes('INV'))"), "volver a invertir restaura los valores");
     w.document.querySelector("#sessions tr[data-id]").click();
     check(await until(() => $("#viewer").open && /Lecturas/.test($("#v-meta").textContent)), "visor de sesión");
     $("#viewer").close();

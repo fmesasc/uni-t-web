@@ -158,8 +158,12 @@ Los valores admiten sufijos: `4.7k`, `100n`, `2,2µ`, `220m`, `1M`.
 ### 4. Puntas al revés
 
 Si estás midiendo tensión o corriente DC con el rojo y el negro cambiados, pulsa **± Invertir**
-(tecla `I`). El signo se corrige en la pantalla, la gráfica y lo que se graba, y aparece `± INV`
-en la pantalla para que no se te olvide.
+(tecla `I`). No se pierde nada: el signo se corrige en todo lo que ya has medido (gráfica,
+estadísticas, REL) y, si estás grabando, también en las lecturas ya guardadas de esa sesión. Las
+nuevas lecturas llegan ya invertidas, y aparece `± INV` en la pantalla para que no se te olvide.
+Pulsarlo otra vez lo deja todo como estaba.
+
+¿Te diste cuenta después? Abre la sesión en **Sesiones** y pulsa **± Invertir sesión**.
 
 ### 5. Pasar los datos a Excel, LibreOffice o Google Sheets
 
@@ -180,6 +184,8 @@ en la pantalla para que no se te olvide.
 - **Pantalla** como la del multímetro: modo, indicadores (AUTO, HOLD, REL, MAX, MIN, BAT) y barra.
 - **Estadísticas** en vivo: mínimo, máximo, media, desviación típica, pico a pico y lecturas por segundo.
 - **Gráfica en vivo** (30 s, 2 min, 10 min, 1 h o todo). Arrastra para ampliar y haz doble clic para volver.
+  Si cambias de modo en el multímetro, la gráfica muestra el modo actual, pero los datos del
+  anterior no se borran: vuelven al volver a ese modo. *Exportar ▾ → Vaciar gráfica* la limpia.
 - **Exportar** la gráfica (PNG con título y estadísticas) y los datos (CSV, JSON, portapapeles).
 - **Sesiones grabadas** con notas, intervalo de guardado, parada automática y opción de ignorar HOLD.
 - **Capturas** puntuales con nota.

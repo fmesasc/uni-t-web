@@ -315,19 +315,27 @@
     "UT61E+": UT61P, "UT61B+": UT61P, "UT61D+": UT61P, "UT161B/D/E": UT61P,
   };
 
-  /** Flip polarity in place; only meaningful for DC voltage and current. */
-  function invertReading(d) {
-    if ((d.quantity !== "voltage" && d.quantity !== "current") || d.coupling === "AC") return d;
+  const canInvert = (d) => (d.quantity === "voltage" || d.quantity === "current") && d.coupling !== "AC";
+
+  /**
+   * Flip polarity in place and toggle the INV flag, so applying it twice
+   * restores the original. Only DC voltage and current are touched.
+   */
+  function flipPolarity(d) {
+    if (!canInvert(d)) return d;
     if (d.value !== null) d.value = d.value ? -d.value : 0;
     if (d.display.replace(/[-0.]/g, "") || d.overload) {   // never show "-0.000"
       d.display = d.display.startsWith("-") ? d.display.slice(1) : "-" + d.display;
     }
     if (d.bargraph) d.bargraph = -d.bargraph;
-    d.flags = [...d.flags, "INV"];
+    d.flags = d.flags.includes("INV") ? d.flags.filter((f) => f !== "INV") : [...d.flags, "INV"];
     return d;
   }
 
-  const api = { PARSERS, MODELS, UT61P_REQUEST, PREFIX_FACTOR, invertReading,
+  /** Inverts a fresh reading (no-op if it already is). */
+  const invertReading = (d) => (d.flags.includes("INV") ? d : flipPolarity(d));
+
+  const api = { PARSERS, MODELS, UT61P_REQUEST, PREFIX_FACTOR, invertReading, flipPolarity, canInvert,
     parseFS9922, parseFS9721, parseES51922, parseUT61Plus };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.Protocols = api;

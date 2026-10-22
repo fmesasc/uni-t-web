@@ -9,8 +9,9 @@ const QUANTITY = {
 };
 const STATE = { disconnected: "Desconectado", connecting: "Conectando…", connected: "Conectado", error: "Error" };
 
-let live = [];            // readings of the current measurement mode
-let stats = null;
+let live = [];            // every reading of this page session, all modes
+let stats = null;         // stats of the current mode since statsSince
+let statsSince = 0;
 let paused = false;
 let windowSec = 120;
 let liveZoom = null;      // {t0, t1} while zoomed into the live chart
@@ -160,7 +161,6 @@ async function connect(kind, model, { device, port, pick = false } = {}) {
     meter.parser = Protocols.PARSERS[kind === "sim" ? "fs9922" : cfg.parser]();
     await link.open(onData, linkLost);
     Object.assign(meter, { link, label: link.label, lastRx: Date.now() / 1000, autoReconnect: kind !== "sim" });
-    live = []; stats = null; liveZoom = null;
     setState("connected");
   } catch (e) {
     if (e.name === "NotFoundError" || e.name === "AbortError") return setState("disconnected");   // picker cancelled
@@ -250,12 +250,26 @@ function addStat(s, v) {
 function statsOf(pts) { const s = newStats(); pts.forEach((p) => p.value !== null && addStat(s, p.value)); return s; }
 const sd = (s) => (s.n > 1 ? Math.sqrt(s.m2 / (s.n - 1)) : 0);
 
+/** Readings of the mode currently shown on the meter. */
+function modeLive() {
+  const last = live[live.length - 1];
+  if (!last) return [];
+  const k = modeKey(last);
+  return live.filter((p) => modeKey(p) === k);
+}
+function recomputeStats() {
+  stats = statsOf(modeLive().filter((p) => p.ts >= statsSince && !p.flags.includes("HOLD")));
+}
+
 function onReading(r, redraw = true) {
   const modeChanged = live.length && modeKey(live[live.length - 1]) !== modeKey(r);
-  if (modeChanged) { live = []; stats = null; liveZoom = null; if (rel && rel.key !== modeKey(r)) rel = null; }
   live.push(r);
-  if (live.length > 50000) live.splice(0, live.length - 50000);
-  if (r.value !== null && !r.flags.includes("HOLD")) addStat((stats ??= newStats()), r.value);
+  if (live.length > 100000) live.splice(0, live.length - 100000);
+  if (modeChanged) {   // the other mode's data stays in the buffer and comes back with it
+    liveZoom = null;
+    if (rel && rel.key !== modeKey(r)) { rel = null; $("#rel-btn").classList.remove("on"); }
+    recomputeStats();
+  } else if (r.value !== null && !r.flags.includes("HOLD")) addStat((stats ??= newStats()), r.value);
   if (!redraw) return;
   detectStable(r);
   checkAlarm(r);
@@ -296,7 +310,7 @@ function renderStats(r) {
     ? `${((recent.length - 1) / (recent[recent.length - 1].ts - recent[0].ts)).toFixed(1)} /s` : "—";
 
 }
-$("#s-reset").onclick = () => { stats = null; renderStats(live[live.length - 1]); };
+$("#s-reset").onclick = () => { statsSince = Date.now() / 1000; stats = null; renderStats(live[live.length - 1]); };
 
 // ---------- REL / invert / voice / fullscreen ----------
 function toggleRel() {
@@ -308,13 +322,23 @@ function toggleRel() {
 }
 $("#rel-btn").onclick = toggleRel;
 
-function toggleInvert() {
+/** Flips polarity from now on and on everything already measured, recording included. */
+async function toggleInvert() {
   meter.invert = !meter.invert;
   store.set("conn", { kind: meter.kind, model: meter.model, invert: meter.invert });
-  live = []; stats = null; liveZoom = null; rel = null;
-  $("#rel-btn").classList.remove("on");
+  live.forEach(Protocols.flipPolarity);   // meter.last is the same object as the newest one
+  if (rel && Protocols.canInvert({ quantity: rel.key.split("|")[0], coupling: rel.key.split("|")[2] || null })) rel.value = -rel.value;
+  recomputeStats();
   renderStatus();
-  toast(meter.invert ? "Polaridad invertida (solo tensión y corriente DC)" : "Polaridad normal");
+  const last = live[live.length - 1];
+  if (last) { renderLCD(last); renderStats(last); }
+  drawLive();
+  let msg = meter.invert ? "Polaridad invertida" : "Polaridad normal";
+  if (meter.recording) {
+    const n = await DB.flipSession(meter.recording.id);
+    if (n) msg += ` · corregidas ${n} lecturas ya grabadas`;
+  }
+  toast(msg + " (solo tensión y corriente DC)", 3500);
 }
 $("#inv-btn").onclick = toggleInvert;
 
@@ -613,12 +637,12 @@ function chartLines(unit) {
 }
 
 function liveView() {
-  const last = live[live.length - 1];
-  if (liveZoom) return { ...liveZoom, pts: live.filter((p) => p.ts >= liveZoom.t0 && p.ts <= liveZoom.t1), unit: last?.unit || "" };
+  const pts = modeLive(), last = pts[pts.length - 1];
+  if (liveZoom) return { ...liveZoom, pts: pts.filter((p) => p.ts >= liveZoom.t0 && p.ts <= liveZoom.t1), unit: last?.unit || "" };
   const now = last ? Math.max(last.ts, Date.now() / 1000) : Date.now() / 1000;
-  if (!windowSec) return { t0: live[0]?.ts, t1: last?.ts, pts: live, unit: last?.unit || "" };
+  if (!windowSec) return { t0: pts[0]?.ts, t1: last?.ts, pts, unit: last?.unit || "" };
   const t0 = now - windowSec;
-  return { t0, t1: now, pts: live.filter((p) => p.ts >= t0 - 1), unit: last?.unit || "" };
+  return { t0, t1: now, pts: pts.filter((p) => p.ts >= t0 - 1), unit: last?.unit || "" };
 }
 function drawLive() {
   const c = $("#chart"), v = liveView();
@@ -673,6 +697,10 @@ $("#live-png").onclick = () => {
 };
 const visibleLive = () => { const v = liveView(); return v.pts.filter((p) => p.ts >= v.t0 && p.ts <= v.t1); };
 $("#live-csv").onclick = () => download(`lecturas-${stamp()}.csv`, toCSV(visibleLive()), "text/csv");
+$("#live-clear").onclick = () => {
+  if (!confirm("¿Vaciar la gráfica en vivo? Las sesiones grabadas y las capturas no se tocan.")) return;
+  live = []; stats = null; liveZoom = null; drawLive(); renderStats(null);
+};
 $("#live-json").onclick = () => download(`lecturas-${stamp()}.json`, JSON.stringify(visibleLive(), null, 1), "application/json");
 $("#live-copy").onclick = async () => {
   // tab separated with decimal comma, pastes straight into a spanish spreadsheet
@@ -805,7 +833,7 @@ async function openSession(id) {
   viewing = { s, pts, unit: pts[0]?.unit || "", zoom: null, modes: Object.keys(counts).length };
   $("#v-name").value = s.name;
   $("#v-notes").value = s.notes || "";
-  $("#viewer").showModal();
+  if (!$("#viewer").open) $("#viewer").showModal();
   drawViewer();
 }
 function viewerRange() {
@@ -846,6 +874,13 @@ $("#v-png").onclick = () => {
 };
 $("#v-csv").onclick = () => download(`sesion-${viewing.s.id}.csv`, toCSV(viewing.s.readings), "text/csv");
 $("#v-json").onclick = () => download(`sesion-${viewing.s.id}.json`, JSON.stringify(viewing.s, null, 1), "application/json");
+$("#v-invert").onclick = async () => {
+  const n = await DB.flipSession(viewing.s.id);
+  if (!n) return toast("Esta sesión no tiene lecturas de tensión o corriente DC");
+  toast(`Invertidas ${n} lecturas`);
+  await openSession(viewing.s.id);
+  loadSessions();
+};
 $("#v-save").onclick = async () => {
   await DB.updateSession(viewing.s.id, { name: $("#v-name").value.trim() || viewing.s.name, notes: $("#v-notes").value });
   $("#viewer").close(); loadSessions(); toast("Guardado");

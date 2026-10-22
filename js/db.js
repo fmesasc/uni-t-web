@@ -106,6 +106,20 @@
         keys.forEach((k) => r.delete(k));
       });
     },
+    /** Flips the polarity of every DC V/A reading of a session (probes were swapped). */
+    flipSession(id) {
+      return tx(["sessions", "readings"], "readwrite", async (s, r) => {
+        const rows = await result(r.index("session").getAll(range(id)));
+        let n = 0, min = null, max = null;
+        for (const row of rows) {
+          if (Protocols.canInvert(row)) { Protocols.flipPolarity(row); r.put(row); n++; }
+          if (row.value !== null) { min = min === null ? row.value : Math.min(min, row.value); max = max === null ? row.value : Math.max(max, row.value); }
+        }
+        const ses = await result(s.get(id));
+        if (ses && n) s.put({ ...ses, min, max });
+        return n;
+      });
+    },
     deleteReading: (id) => tx("readings", "readwrite", (r) => { r.delete(id); }),
     clearSnapshots() { return this.deleteSession(SNAPSHOTS); },
 

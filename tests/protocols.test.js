@@ -86,6 +86,8 @@
     const r = P.invertReading(P.parseFS9922(fs9922("-", "1234", "1", 0x10, 0, 0, 0x80)));
     ok(r.display === "1.234" && r.value > 0 && r.flags.includes("INV"));
     ok(P.invertReading(P.parseFS9922(fs9922("+", "0000", "1", 0x10, 0, 0, 0x80))).display === "0.000");
+    const back = P.flipPolarity(P.flipPolarity(P.parseFS9922(fs9922("-", "1234", "1", 0x10, 0, 0, 0x80))));
+    ok(back.display === "-1.234" && back.value < 0 && !back.flags.includes("INV"), "doble inversión");
     const ohm = P.invertReading(P.parseFS9922(fs9922("+", "1000", "1", 0, 0, 0x20, 0x20)));
     ok(ohm.value === 1000 && !ohm.flags.includes("INV"));
   });

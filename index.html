@@ -62,7 +62,7 @@
       <button id="snap" title="Atajo: espacio">📌 Capturar</button>
     </div>
     <div class="toolbar">
-      <button id="inv-btn" class="small" title="Invierte el signo de tensión y corriente DC, por si las puntas están al revés (atajo: I). Afecta también a lo que se graba">± Invertir</button>
+      <button id="inv-btn" class="small" title="Invierte el signo de tensión y corriente DC, por si las puntas están al revés (atajo: I). Se aplica también a lo ya medido y a la grabación en curso">± Invertir</button>
       <button id="rel-btn" class="small" title="Fija la lectura actual como referencia y muestra la diferencia (atajo: R)">Δ REL</button>
       <button id="voice-btn" class="small" title="Lee el valor en voz alta cuando se estabiliza (atajo: V)">🔈 Voz</button>
       <button id="fs-btn" class="small" title="Pantalla completa (atajo: F)">⛶ Pantalla completa</button>
@@ -163,6 +163,7 @@
           <button id="live-csv">Datos CSV</button>
           <button id="live-json">Datos JSON</button>
           <button id="live-copy">Copiar al portapapeles (tabla)</button>
+          <button id="live-clear">Vaciar gráfica…</button>
         </div>
       </div>
     </div>
@@ -215,6 +216,7 @@
       <button type="button" id="v-png">Imagen PNG</button>
       <button type="button" id="v-csv">CSV</button>
       <button type="button" id="v-json">JSON</button>
+      <button type="button" id="v-invert" title="Cambia el signo de todas las lecturas de tensión y corriente DC de esta sesión">± Invertir sesión</button>
       <button type="button" id="v-save" class="primary">Guardar cambios</button>
       <button type="button" id="v-delete" class="danger">Borrar sesión</button>
     </div>
