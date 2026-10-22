@@ -86,15 +86,20 @@ main {
 .bar { height: 8px; background: var(--lcd-dim); border-radius: 2px; overflow: hidden; }
 .bar div { height: 100%; width: 0; background: var(--lcd-ink); transition: width .15s; }
 
-.stats { display: grid; grid-template-columns: repeat(4, 1fr) auto; gap: 8px; align-items: end; margin-top: 14px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 8px; align-items: end; margin-top: 14px; }
 .stats label { display: block; font-size: 12px; color: var(--muted); }
 .stats span { font-variant-numeric: tabular-nums; font-weight: 600; }
 @media (max-width: 480px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+.stats button { justify-self: start; }
 .actions { display: flex; gap: 8px; margin-top: 14px; }
 .actions input { flex: 1; min-width: 0; }
 
 /* recording */
-.rec-form { display: flex; flex-direction: column; gap: 10px; }
+.form { display: flex; flex-direction: column; gap: 10px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); flex: 1; min-width: 130px; }
+.hint { color: var(--muted); font-size: 13px; margin: 0; }
+.hint code { font-size: 12px; background: var(--line); padding: 1px 4px; border-radius: 4px; }
 .inline { display: flex; align-items: center; gap: 8px; color: var(--muted); }
 .rec-active { display: flex; align-items: center; gap: 12px; }
 .rec-active div { flex: 1; display: flex; flex-direction: column; }
@@ -139,3 +144,50 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 .viewer-foot { display: flex; gap: 8px; flex-wrap: wrap; }
 .viewer-foot .danger { margin-left: auto; }
 #v-chart { height: 340px; }
+
+/* additions: tools, overlays, states */
+.banner.warn { background: color-mix(in srgb, var(--accent) 18%, var(--card)); color: var(--ink); }
+button.on { background: var(--ink); color: var(--card); border-color: var(--ink); }
+.toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.lcd-sub { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: flex-end; min-height: 20px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+#verdict.ok { color: #1e7a43; }
+#verdict.bad, #alarm { color: #b3261e; }
+:root[data-theme="dark"] #verdict.ok { color: #7ef0a8; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) #verdict.ok { color: #7ef0a8; }
+  :root:not([data-theme="light"]) #verdict.bad, :root:not([data-theme="light"]) #alarm { color: #ff8a80; }
+}
+.lcd.alarm { box-shadow: inset 0 2px 8px rgba(0,0,0,.18), 0 0 0 3px var(--rec); animation: pulse 1s infinite; }
+@keyframes pulse { 50% { box-shadow: inset 0 2px 8px rgba(0,0,0,.18), 0 0 0 3px transparent; } }
+.flags span.inv { background: var(--lcd-ink); color: var(--lcd-bg); }
+.tools .tabs { margin-bottom: 14px; }
+.spacer { flex: 1; }
+.tabs { align-items: center; }
+.live-tag { color: var(--rec); }
+.list td.note.ok { color: var(--ok); }
+.list td.note.bad { color: var(--rec); }
+.pane-scroll { overflow-x: auto; }
+.chart-hint { margin-top: 6px; }
+
+.menu { position: relative; }
+.menu-list { position: absolute; z-index: 10; top: calc(100% + 4px); left: 0; min-width: 220px; display: flex; flex-direction: column;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 4px; box-shadow: 0 8px 24px rgba(0,0,0,.15); }
+.chart-head .menu-list, .menu-list.right { left: auto; right: 0; }
+.menu-list button { border: 0; text-align: left; background: transparent; border-radius: 6px; }
+.menu-list button:hover { background: var(--bg); }
+
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 50; max-width: calc(100vw - 32px);
+  background: var(--ink); color: var(--card); padding: 10px 16px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+
+.foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; max-width: 1280px; margin: 0 auto;
+  padding: 0 20px 28px; color: var(--muted); font-size: 13px; }
+.foot a { color: inherit; }
+
+/* fullscreen meter: readable from across the bench */
+.meter:fullscreen { display: flex; flex-direction: column; justify-content: center; padding: 4vh 4vw; border-radius: 0; border: 0; }
+.meter:fullscreen .lcd { padding: 4vh 4vw; }
+.meter:fullscreen .value { font-size: min(24vw, 40vh); }
+.meter:fullscreen .unit { font-size: min(7vw, 10vh); }
+.meter:fullscreen .mode, .meter:fullscreen .lcd-sub { font-size: min(3vw, 4vh); }
+.meter:fullscreen .actions { display: none; }
+.tabs button.on { background: transparent; color: var(--ink); border-color: transparent; border-bottom-color: var(--accent); }

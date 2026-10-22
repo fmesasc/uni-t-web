@@ -9,7 +9,6 @@ const QUANTITY = {
 };
 const STATE = { disconnected: "Desconectado", connecting: "Conectando…", connected: "Conectado", error: "Error" };
 
-let status = {};
 let live = [];            // readings of the current measurement mode
 let stats = null;
 let paused = false;
@@ -20,16 +19,6 @@ let rel = null;           // {value, key, unit}
 let voice = false;
 
 // ---------- helpers ----------
-const api = async (path, opts = {}) => {
-  const r = await fetch(path, {
-    headers: { "Content-Type": "application/json" }, ...opts,
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  });
-  const ct = r.headers.get("content-type") || "";
-  const data = ct.includes("json") ? await r.json() : await r.text();
-  if (!r.ok) throw Object.assign(new Error(typeof data === "string" ? data : r.statusText), { data });
-  return data;
-};
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const modeKey = (r) => `${r.quantity}|${r.unit}|${r.coupling || ""}`;
 const modeLabel = (r) => (r ? `${QUANTITY[r.quantity] || r.quantity}${r.coupling ? " " + r.coupling : ""}` : "—");
@@ -109,48 +98,142 @@ document.addEventListener("click", (e) => {
   else if (e.target.closest(".menu-list button")) e.target.closest(".menu-list").hidden = true;
 });
 
-// ---------- connection ----------
-async function loadInfo() {
-  const info = await api("/api/info");
-  const dev = $("#device");
-  const prev = dev.value || status.device;
-  dev.innerHTML = info.devices.map((d) =>
-    `<option value="${esc(d.path)}">${esc(d.label)}${d.access ? "" : " (sin permiso)"}</option>`).join("");
-  const firstReal = info.devices.find((d) => d.kind !== "sim");
-  dev.value = [prev, info.status.device, firstReal?.path, "sim"].find((p) => p && info.devices.some((d) => d.path === p));
-  const model = $("#model");
-  if (!model.options.length) model.innerHTML = info.models.map((m) => `<option>${esc(m)}</option>`).join("");
-  model.value = info.status.model;
-}
-$("#refresh").onclick = loadInfo;
-$("#connect").onclick = async () => {
-  const btn = $("#connect");
-  btn.disabled = true;
-  try {
-    if (status.state === "connected") await api("/api/disconnect", { method: "POST" });
-    else await api("/api/connect", { method: "POST", body: { device: $("#device").value, model: $("#model").value } });
-  } catch { /* the status broadcast carries the error */ }
-  btn.disabled = false;
+// ---------- connection (everything runs in the browser) ----------
+const meter = {
+  state: "disconnected", error: null, label: "", model: "UT61C", kind: "hid",
+  link: null, parser: null, hidDevice: null, lastRx: 0, last: null,
+  invert: false, recording: null, autoReconnect: false,
 };
+const hasHid = "hid" in navigator, hasSerial = "serial" in navigator;
+
+function setupConnection() {
+  const prefs = store.get("conn", {});
+  $("#model").innerHTML = Object.keys(Protocols.MODELS).map((m) => `<option>${esc(m)}</option>`).join("");
+  $("#model").value = Protocols.MODELS[prefs.model] ? prefs.model : "UT61C";
+  $("#link").value = prefs.kind || "hid";
+  $("#link option[value=hid]").disabled = !hasHid;
+  $("#link option[value=serial]").disabled = !hasSerial;
+  if (!hasHid && !hasSerial) { $("#support").hidden = false; $("#link").value = "sim"; }
+  meter.invert = !!prefs.invert;
+
+  if (hasHid) {
+    navigator.hid.addEventListener("disconnect", (e) => {
+      if (e.device === meter.hidDevice) linkLost("Se ha desconectado el cable USB");
+    });
+    navigator.hid.addEventListener("connect", (e) => {
+      const cfg = Protocols.MODELS[meter.model];
+      const ids = cfg.link === "cp2110" ? Drivers.CP2110_IDS : Drivers.UTD04_IDS;
+      if (meter.autoReconnect && meter.kind === "hid" && !meter.link && Drivers.matches(e.device, ids)) {
+        connect("hid", meter.model, { device: e.device }).then(() => toast("Cable reconectado"));
+      }
+    });
+  }
+  if (hasSerial) {
+    navigator.serial.addEventListener("connect", (e) => {
+      if (meter.autoReconnect && meter.kind === "serial" && !meter.link) connect("serial", meter.model, { port: e.target });
+    });
+  }
+}
+
+async function connect(kind, model, { device, port, pick = false } = {}) {
+  await disconnect(true);
+  const cfg = Protocols.MODELS[model];
+  Object.assign(meter, { kind, model, error: null });
+  $("#link").value = kind; $("#model").value = model;
+  store.set("conn", { kind, model, invert: meter.invert });
+  try {
+    let link;
+    if (kind === "sim") link = new Drivers.SimLink();
+    else if (kind === "hid") {
+      const dev = device || (!pick && (await Drivers.grantedHid(cfg))[0]) || (await Drivers.requestHid(cfg));
+      if (!dev) return setState("disconnected");
+      meter.hidDevice = dev;
+      link = Drivers.makeHidLink(dev, cfg);
+    } else {
+      port ||= (!pick && (await navigator.serial.getPorts())[0]) || (await navigator.serial.requestPort());
+      link = new Drivers.SerialLink(port, cfg);
+    }
+    setState("connecting");
+    meter.parser = Protocols.PARSERS[kind === "sim" ? "fs9922" : cfg.parser]();
+    await link.open(onData, linkLost);
+    Object.assign(meter, { link, label: link.label, lastRx: Date.now() / 1000, autoReconnect: kind !== "sim" });
+    live = []; stats = null; liveZoom = null;
+    setState("connected");
+  } catch (e) {
+    if (e.name === "NotFoundError" || e.name === "AbortError") return setState("disconnected");   // picker cancelled
+    let msg = e.message || String(e);
+    if (e.name === "NotAllowedError" || e.name === "SecurityError" || /open|access/i.test(msg)) {
+      msg = `No se pudo abrir el dispositivo (${msg}). En Linux hace falta la regla udev para el cable; mira las instrucciones en GitHub.`;
+    }
+    meter.error = msg;
+    setState("error");
+  }
+}
+
+async function disconnect(keepReconnect = false) {
+  const link = meter.link;
+  meter.link = null;
+  if (!keepReconnect) meter.autoReconnect = false;
+  if (link) await link.close();
+  if (meter.state !== "error" || !keepReconnect) setState("disconnected");
+}
+
+function linkLost(msg) {
+  if (!meter.link) return;
+  meter.link.close();
+  meter.link = null;
+  meter.error = `${msg}. Se reconectará solo al volver a enchufarlo.`;
+  setState("error");
+}
+
+function setState(s) { meter.state = s; renderStatus(); }
+
+function onData(bytes) {
+  if (!meter.parser) return;
+  for (const r of meter.parser.feed(bytes)) {
+    meter.lastRx = Date.now() / 1000;
+    if (meter.invert) Protocols.invertReading(r);
+    meter.last = r;
+    record(r);
+    onReading(r);
+  }
+}
+
+$("#connect").onclick = () => (meter.state === "connected" ? stopAndDisconnect() : connect($("#link").value, $("#model").value));
+$("#pick").onclick = () => connect($("#link").value, $("#model").value, { pick: true });
+async function stopAndDisconnect() { await stopRecording(); await disconnect(); }
+
+// silence detection and recording time limit
+setInterval(() => {
+  const now = Date.now() / 1000;
+  const s = meter.state === "connected" && now - meter.lastRx > 3;
+  if (s !== silent) { silent = s; renderStatus(); }
+  const rec = meter.recording;
+  if (rec && rec.maxDuration && now - rec.started >= rec.maxDuration) { stopRecording(); toast("Grabación terminada por duración"); }
+  else if (rec) renderStatus();
+  if (!paused && !liveZoom && windowSec) drawLive();
+}, 1000);
 
 function renderStatus() {
   const pill = $("#state");
-  const st = status.state === "connected" && silent ? "silent" : status.state;
+  const st = meter.state === "connected" && silent ? "silent" : meter.state;
   pill.className = "pill " + st;
-  pill.textContent = st === "silent" ? "Sin datos — ¿multímetro encendido y en modo RS232?" : STATE[status.state] || status.state;
-  $("#connect").textContent = status.state === "connected" ? "Desconectar" : "Conectar";
+  pill.textContent = st === "silent" ? "Sin datos — ¿multímetro encendido y en modo RS232?"
+    : st === "connected" ? `Conectado · ${meter.label}` : STATE[meter.state] || meter.state;
+  $("#connect").textContent = meter.state === "connected" ? "Desconectar" : "Conectar";
+  $("#pick").hidden = $("#link").value === "sim";
   const err = $("#error");
-  err.hidden = !(status.state === "error" && status.error);
-  err.textContent = status.error || "";
-  $("#lcd").classList.toggle("stale", status.state !== "connected" || silent);
-  $("#inv-btn").classList.toggle("on", !!status.invert);
+  err.hidden = !(meter.state === "error" && meter.error);
+  err.textContent = meter.error || "";
+  $("#lcd").classList.toggle("stale", meter.state !== "connected" || silent);
+  $("#inv-btn").classList.toggle("on", meter.invert);
 
-  const rec = status.recording;
+  const rec = meter.recording;
   $("#rec-idle").hidden = !!rec;
   $("#rec-active").hidden = !rec;
   if (rec) {
     $("#rec-title").textContent = rec.name;
-    const left = rec.max_duration ? ` · quedan ${fmtDur(rec.started + rec.max_duration - Date.now() / 1000)}` : "";
+    const left = rec.maxDuration ? ` · quedan ${fmtDur(rec.started + rec.maxDuration - Date.now() / 1000)}` : "";
     $("#rec-info").textContent = `${rec.count} lecturas · ${fmtDur(Date.now() / 1000 - rec.started)}${left}`;
   }
 }
@@ -208,7 +291,7 @@ function renderStats(r) {
   const recent = live.filter((p) => p.ts > (r?.ts ?? 0) - 10);
   $("#s-rate").textContent = recent.length > 1
     ? `${((recent.length - 1) / (recent[recent.length - 1].ts - recent[0].ts)).toFixed(1)} /s` : "—";
-  if (status.recording) renderStatus();
+
 }
 $("#s-reset").onclick = () => { stats = null; renderStats(live[live.length - 1]); };
 
@@ -222,11 +305,13 @@ function toggleRel() {
 }
 $("#rel-btn").onclick = toggleRel;
 
-async function toggleInvert() {
-  await api("/api/invert", { method: "POST", body: { on: !status.invert } });
+function toggleInvert() {
+  meter.invert = !meter.invert;
+  store.set("conn", { kind: meter.kind, model: meter.model, invert: meter.invert });
   live = []; stats = null; liveZoom = null; rel = null;
   $("#rel-btn").classList.remove("on");
-  toast(status.invert ? "Polaridad normal" : "Polaridad invertida (solo tensión y corriente DC)");
+  renderStatus();
+  toast(meter.invert ? "Polaridad invertida (solo tensión y corriente DC)" : "Polaridad normal");
 }
 $("#inv-btn").onclick = toggleInvert;
 
@@ -319,7 +404,7 @@ function checkAlarm(r) {
     const msg = `${modeLabel(r)}: ${r.display} ${r.prefix}${r.unit}`;
     if (alarm.notify && "Notification" in window && Notification.permission === "granted")
       new Notification("Alarma del multímetro", { body: msg });
-    if (alarm.stop && status.recording) api("/api/record/stop", { method: "POST" }).then(() => toast("Grabación parada por la alarma"));
+    if (alarm.stop && meter.recording) stopRecording().then(() => toast("Grabación parada por la alarma"));
   }
   alarm.tripped = out;
 }
@@ -361,9 +446,7 @@ function renderVerdict(r) {
 }
 async function captureSorted(r) {
   const v = verdictOf(r);
-  const note = `${v.ok ? "DENTRO" : "FUERA"} · nominal ${sorter.nomTxt} ±${sorter.tol} % (${v.dev >= 0 ? "+" : ""}${v.dev.toFixed(2)} %)`
-    + ($("#snap-note").value ? " · " + $("#snap-note").value : "");
-  await api("/api/snapshot", { method: "POST", body: { note } });
+  await DB.addReading(DB.SNAPSHOTS, r, sorterNote(r, $("#snap-note").value));
   sorter.count++; if (v.ok) sorter.pass++;
   v.ok ? beep(1760, 90) : beep(440, 250);
   renderSorter(); loadSnaps();
@@ -582,7 +665,7 @@ $("#live-png").onclick = () => {
   const v = liveView(), last = live[live.length - 1];
   if (!last) return toast("No hay datos todavía");
   const pts = v.pts.filter((p) => p.ts >= v.t0 && p.ts <= v.t1);
-  exportPNG(v.pts, { ...v, title: `${modeLabel(last)} — ${status.model || ""}`, lines: chartLines(v.unit),
+  exportPNG(v.pts, { ...v, title: `${modeLabel(last)} — ${meter.model}`, lines: chartLines(v.unit),
     subtitle: `${fmtTime(v.t0)} → ${fmtTime(v.t1)} · ${summary(pts, v.unit)}`, filename: `grafica-${stamp()}.png` });
 };
 const visibleLive = () => { const v = liveView(); return v.pts.filter((p) => p.ts >= v.t0 && p.ts <= v.t1); };
@@ -601,67 +684,117 @@ const recPrefs = store.get("rec", {});
 if (recPrefs.interval !== undefined) $("#rec-interval").value = recPrefs.interval;
 if (recPrefs.max !== undefined) $("#rec-max").value = recPrefs.max;
 $("#rec-skiphold").checked = !!recPrefs.skipHold;
-$("#rec-start").onclick = async () => {
-  const body = { name: $("#rec-name").value, interval: +$("#rec-interval").value,
-    max_duration: +$("#rec-max").value, skip_hold: $("#rec-skiphold").checked };
-  store.set("rec", { interval: body.interval, max: body.max_duration, skipHold: body.skip_hold });
-  await api("/api/record/start", { method: "POST", body });
-  $("#rec-name").value = "";
-};
-$("#rec-stop").onclick = async () => { await api("/api/record/stop", { method: "POST" }); loadSessions(); };
+let wakeLock = null;
 
-async function snapshot() {
-  const r = live[live.length - 1];
+async function startRecording() {
+  const name = $("#rec-name").value.trim() || `Sesión ${new Date().toLocaleString("es-ES")}`;
+  const interval = +$("#rec-interval").value, maxDuration = +$("#rec-max").value, skipHold = $("#rec-skiphold").checked;
+  store.set("rec", { interval, max: maxDuration, skipHold });
+  if (meter.recording) await stopRecording();
+  const id = await DB.startSession(name, meter.model);
+  meter.recording = { id, name, interval, maxDuration, skipHold, started: Date.now() / 1000, lastTs: 0, count: 0 };
+  $("#rec-name").value = "";
+  try { wakeLock = await navigator.wakeLock?.request("screen"); } catch {}
+  renderStatus(); loadSessions();
+}
+async function stopRecording() {
+  const rec = meter.recording;
+  if (!rec) return;
+  meter.recording = null;
+  await DB.endSession(rec.id);
+  try { await wakeLock?.release(); } catch {}
+  wakeLock = null;
+  renderStatus(); loadSessions();
+}
+function record(r) {
+  const rec = meter.recording;
+  if (!rec || r.ts - rec.lastTs < rec.interval || (rec.skipHold && r.flags.includes("HOLD"))) return;
+  rec.lastTs = r.ts; rec.count++;
+  DB.addReading(rec.id, r).catch((e) => toast("No se pudo guardar: " + e.message));
+}
+$("#rec-start").onclick = startRecording;
+$("#rec-stop").onclick = stopRecording;
+window.addEventListener("beforeunload", (e) => { if (meter.recording) { e.preventDefault(); e.returnValue = ""; } });
+document.addEventListener("visibilitychange", async () => {   // the wake lock drops when the tab is hidden
+  if (meter.recording && document.visibilityState === "visible") try { wakeLock = await navigator.wakeLock?.request("screen"); } catch {}
+});
+
+function sorterNote(r, extra) {
   const v = r && verdictOf(r);
-  let note = $("#snap-note").value;
-  if (v) note = `${v.ok ? "DENTRO" : "FUERA"} · nominal ${sorter.nomTxt} ±${sorter.tol} % (${v.dev >= 0 ? "+" : ""}${v.dev.toFixed(2)} %)` + (note ? " · " + note : "");
-  try {
-    await api("/api/snapshot", { method: "POST", body: { note } });
-    if (!sorter.on) $("#snap-note").value = "";
-    toast(`Capturado: ${r.display} ${r.prefix}${r.unit}`);
-    loadSnaps();
-    showListTab("snaps");
-  } catch { toast("Todavía no hay ninguna lectura que capturar"); }
+  if (!v) return extra;
+  return `${v.ok ? "DENTRO" : "FUERA"} · nominal ${sorter.nomTxt} ±${sorter.tol} % (${v.dev >= 0 ? "+" : ""}${v.dev.toFixed(2)} %)` + (extra ? " · " + extra : "");
+}
+async function snapshot() {
+  const r = meter.last;
+  if (!r) return toast("Todavía no hay ninguna lectura que capturar");
+  await DB.addReading(DB.SNAPSHOTS, r, sorterNote(r, $("#snap-note").value));
+  if (!sorter.on) $("#snap-note").value = "";
+  toast(`Capturado: ${r.display} ${r.prefix}${r.unit}`);
+  loadSnaps();
+  showListTab("snaps");
 }
 $("#snap").onclick = snapshot;
 
 async function loadSnaps() {
-  const rows = await api("/api/snapshots");
+  const rows = await DB.snapshots();
   $("#snaps-empty").hidden = rows.length > 0;
   $("#snaps").innerHTML = rows.map((r) => `<tr>
     <td>${fmtTime(r.ts)}</td><td class="r"><b>${esc(r.display)} ${esc(r.prefix + r.unit)}</b></td>
     <td>${esc(modeLabel(r))}</td><td class="note ${/^DENTRO/.test(r.note) ? "ok" : /^FUERA/.test(r.note) ? "bad" : ""}">${esc(r.note)}</td>
     <td><button class="ghost small" data-del="${r.id}" title="Borrar">✕</button></td></tr>`).join("");
+  updateUsage();
 }
 $("#snaps").onclick = async (e) => {
   const id = e.target.dataset.del;
-  if (id) { await api(`/api/readings/${id}`, { method: "DELETE" }); loadSnaps(); }
+  if (id) { await DB.deleteReading(+id); loadSnaps(); }
 };
 $("#snaps-clear").onclick = async () => {
   if (!confirm("¿Borrar todas las capturas?")) return;
-  await api("/api/snapshots", { method: "DELETE" }); loadSnaps();
+  await DB.clearSnapshots(); loadSnaps();
 };
+$("#snaps-csv").onclick = async () => download(`capturas-${stamp()}.csv`, toCSV(await DB.snapshots()), "text/csv");
 
 async function loadSessions() {
-  const rows = await api("/api/sessions");
+  const rows = await DB.sessions();
   $("#sessions-empty").hidden = rows.length > 0;
   $("#sessions").innerHTML = rows.map((s) => `<tr class="click" data-id="${s.id}">
     <td><b>${esc(s.name)}</b>${s.ended ? "" : " <small class='live-tag'>● grabando</small>"}</td>
     <td>${fmtTime(s.started)}</td><td>${fmtDur((s.ended || Date.now() / 1000) - s.started)}</td>
     <td class="r">${s.count}</td>
-    <td class="r">${s.count ? `${fmtSI(s.min, s.unit || "")} / ${fmtSI(s.max, s.unit || "")}` : "—"}</td>
-    <td><a class="btn ghost small" href="/api/sessions/${s.id}/csv" title="Descargar CSV">CSV</a></td></tr>`).join("");
+    <td class="r">${s.count && s.min !== null ? `${fmtSI(s.min, s.unit || "")} / ${fmtSI(s.max, s.unit || "")}` : "—"}</td>
+    <td><button class="ghost small" data-csv="${s.id}" title="Descargar CSV">CSV</button></td></tr>`).join("");
+  updateUsage();
 }
-$("#sessions").onclick = (e) => {
-  if (e.target.closest("a")) return;
+$("#sessions").onclick = async (e) => {
+  const csv = e.target.dataset.csv;
+  if (csv) return download(`sesion-${csv}.csv`, toCSV(await DB.readings(+csv)), "text/csv");
   const tr = e.target.closest("tr[data-id]");
   if (tr) openSession(+tr.dataset.id);
+};
+
+async function updateUsage() {
+  const u = await DB.usage();
+  $("#usage").textContent = u?.usage ? `${(u.usage / 1048576).toFixed(1)} MB usados` : "";
+}
+$("#backup-export").onclick = async () => {
+  download(`unit-web-copia-${stamp()}.json`, JSON.stringify(await DB.exportAll()), "application/json");
+};
+$("#backup-import").onclick = () => $("#backup-file").click();
+$("#backup-file").onchange = async (e) => {
+  const f = e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  try {
+    const n = await DB.importAll(JSON.parse(await f.text()));
+    toast(`Restauradas ${n.sessions} sesiones y ${n.readings} lecturas`);
+    loadSessions(); loadSnaps();
+  } catch (err) { toast(err.message, 4000); }
 };
 
 // ---------- session viewer ----------
 let viewing = null;   // {session, pts (dominant mode), unit, zoom}
 async function openSession(id) {
-  const s = await api(`/api/sessions/${id}`);
+  const s = { ...(await DB.session(id)), readings: await DB.readings(id) };
   const counts = {};
   s.readings.forEach((r) => (counts[modeKey(r)] = (counts[modeKey(r)] || 0) + 1));
   const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
@@ -669,8 +802,6 @@ async function openSession(id) {
   viewing = { s, pts, unit: pts[0]?.unit || "", zoom: null, modes: Object.keys(counts).length };
   $("#v-name").value = s.name;
   $("#v-notes").value = s.notes || "";
-  $("#v-csv").href = `/api/sessions/${id}/csv`;
-  $("#v-json").href = `/api/sessions/${id}/json`;
   $("#viewer").showModal();
   drawViewer();
 }
@@ -710,13 +841,15 @@ $("#v-png").onclick = () => {
   exportPNG(pts, { unit, t0, t1, title: s.name, filename: `sesion-${s.id}.png`,
     subtitle: `${s.model} · ${pts[0] ? modeLabel(pts[0]) : ""} · ${fmtTime(t0)} → ${fmtTime(t1)} · ${summary(pts.filter((p) => p.ts >= t0 && p.ts <= t1), unit)}` });
 };
+$("#v-csv").onclick = () => download(`sesion-${viewing.s.id}.csv`, toCSV(viewing.s.readings), "text/csv");
+$("#v-json").onclick = () => download(`sesion-${viewing.s.id}.json`, JSON.stringify(viewing.s, null, 1), "application/json");
 $("#v-save").onclick = async () => {
-  await api(`/api/sessions/${viewing.s.id}`, { method: "PATCH", body: { name: $("#v-name").value, notes: $("#v-notes").value } });
+  await DB.updateSession(viewing.s.id, { name: $("#v-name").value.trim() || viewing.s.name, notes: $("#v-notes").value });
   $("#viewer").close(); loadSessions(); toast("Guardado");
 };
 $("#v-delete").onclick = async () => {
   if (!confirm(`¿Borrar la sesión «${viewing.s.name}» y sus ${viewing.s.readings.length} lecturas?`)) return;
-  await api(`/api/sessions/${viewing.s.id}`, { method: "DELETE" });
+  await DB.deleteSession(viewing.s.id);
   $("#viewer").close(); loadSessions();
 };
 
@@ -728,37 +861,9 @@ document.addEventListener("keydown", (e) => {
   if (act) { e.preventDefault(); act(); }
 });
 
-// ---------- websocket ----------
-function connectWS() {
-  const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
-  ws.onmessage = (ev) => {
-    const m = JSON.parse(ev.data);
-    if (m.type === "hello") {
-      live = []; stats = null;
-      m.history.forEach((r) => onReading(r, false));
-      status = m.status; renderStatus();
-      const last = live[live.length - 1];
-      if (last) { renderLCD(last); renderStats(last); }
-      drawLive();
-    } else if (m.type === "reading") {
-      onReading(m.reading);
-    } else if (m.type === "status") {
-      const wasRec = !!status.recording;
-      status = m.status; renderStatus();
-      if (wasRec !== !!status.recording) loadSessions();
-    } else if (m.type === "tick") {
-      if (silent !== m.silent) { silent = m.silent; renderStatus(); }
-      if (!paused && !liveZoom && windowSec) drawLive();
-    }
-  };
-  ws.onclose = () => {
-    status = { ...status, state: "error", error: "Se perdió la conexión con el servidor. Reintentando…" };
-    renderStatus();
-    setTimeout(connectWS, 2000);
-  };
-}
-
-loadInfo().catch(() => {});
-loadSessions();
-loadSnaps();
-connectWS();
+// ---------- start ----------
+setupConnection();
+renderStatus();
+drawLive();
+DB.init().then(() => { loadSessions(); loadSnaps(); }).catch((e) => toast("Base de datos no disponible: " + e.message, 5000));
+if (new URLSearchParams(location.search).has("demo")) connect("sim", $("#model").value);

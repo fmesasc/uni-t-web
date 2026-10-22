@@ -5,20 +5,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>UNI-T Web</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='5' y='2' width='22' height='28' rx='4' fill='%23e8b400'/><rect x='8' y='5' width='16' height='9' rx='1' fill='%23233'/><circle cx='16' cy='22' r='4.5' fill='%23233'/></svg>">
-<link rel="stylesheet" href="/static/style.css">
+<meta name="description" content="Lee multímetros UNI-T (UT61C y compatibles) desde el navegador por USB, sin instalar nada.">
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <header class="topbar">
   <div class="brand"><span class="logo"></span>UNI-T <b>Web</b></div>
   <div class="conn">
     <span id="state" class="pill">—</span>
-    <select id="device" title="Dispositivo"></select>
-    <button id="refresh" class="icon" title="Buscar dispositivos">⟳</button>
-    <select id="model" title="Modelo"></select>
+    <select id="model" title="Modelo del multímetro"></select>
+    <select id="link" title="Cómo está conectado">
+      <option value="hid">Cable USB</option>
+      <option value="serial">Puerto serie</option>
+      <option value="sim">Simulador</option>
+    </select>
     <button id="connect" class="primary">Conectar</button>
+    <button id="pick" class="icon" title="Elegir otro dispositivo">⇄</button>
   </div>
 </header>
 <div id="error" class="banner" hidden></div>
+<div id="support" class="banner warn" hidden>
+  Este navegador no puede acceder al USB. Abre la página con <b>Chrome</b>, <b>Edge</b>, <b>Chromium</b>,
+  <b>Brave</b> u <b>Opera</b> (Firefox y Safari no tienen WebHID ni Web Serial). Mientras, puedes probar con el simulador.
+</div>
 
 <main>
   <section class="card meter" id="meter">
@@ -166,7 +175,14 @@
       <button data-tab="sessions" class="on">Sesiones</button>
       <button data-tab="snaps">Capturas</button>
       <span class="spacer"></span>
-      <a class="btn ghost small" href="/api/backup" title="Descarga toda la base de datos (SQLite)">💾 Copia de seguridad</a>
+      <div class="menu">
+        <button class="ghost small" data-menu>💾 Datos ▾</button>
+        <div class="menu-list right" hidden>
+          <button id="backup-export">Descargar copia de seguridad</button>
+          <button id="backup-import">Restaurar copia…</button>
+        </div>
+      </div>
+      <input type="file" id="backup-file" accept=".json,application/json" hidden>
     </div>
     <div data-pane="sessions" class="pane-scroll">
       <table class="list"><thead><tr><th>Nombre</th><th>Inicio</th><th>Duración</th><th class="r">N</th><th class="r">Mín / Máx</th><th></th></tr></thead>
@@ -175,7 +191,7 @@
     </div>
     <div data-pane="snaps" class="pane-scroll" hidden>
       <div class="tab-tools">
-        <a class="btn ghost small" href="/api/snapshots/csv">Exportar CSV</a>
+        <button id="snaps-csv" class="ghost small">Exportar CSV</button>
         <button id="snaps-clear" class="ghost small danger">Borrar todas</button>
       </div>
       <table class="list"><thead><tr><th>Fecha</th><th class="r">Valor</th><th>Modo</th><th>Nota</th><th></th></tr></thead>
@@ -197,15 +213,23 @@
     <textarea id="v-notes" placeholder="Notas de la sesión"></textarea>
     <div class="viewer-foot">
       <button type="button" id="v-png">Imagen PNG</button>
-      <a id="v-csv" class="btn">CSV</a>
-      <a id="v-json" class="btn">JSON</a>
+      <button type="button" id="v-csv">CSV</button>
+      <button type="button" id="v-json">JSON</button>
       <button type="button" id="v-save" class="primary">Guardar cambios</button>
       <button type="button" id="v-delete" class="danger">Borrar sesión</button>
     </div>
   </form>
 </dialog>
 
+<footer class="foot">
+  <span id="usage"></span>
+  <span>Los datos se guardan solo en este navegador · <a href="https://github.com/fmesasc/uni-t-web">Código en GitHub</a></span>
+</footer>
+
 <div id="toast" class="toast" hidden></div>
-<script src="/static/app.js"></script>
+<script src="js/protocols.js"></script>
+<script src="js/drivers.js"></script>
+<script src="js/db.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>

@@ -1,0 +1,51 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>E2E</title>
+<body style="white-space:pre;font-family:monospace">
+<iframe id="f" src="../index.html?demo" style="width:1200px;height:900px"></iframe>
+<script>
+// Drives the real page with the simulator: record, snapshot, viewer, backup round-trip.
+const log = (m) => (document.body.firstChild.textContent += m + "\n");
+document.body.prepend(document.createTextNode(""));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const errors = [];
+const until = async (fn, ms = 4000) => { const t = Date.now(); while (!fn() && Date.now() - t < ms) await sleep(50); return fn(); };
+const f = document.getElementById("f");
+f.onload = async () => {
+  const w = f.contentWindow, $ = (s) => w.document.querySelector(s);
+  w.addEventListener("error", (e) => errors.push(e.message));
+  w.addEventListener("unhandledrejection", (e) => errors.push(String(e.reason)));
+  const check = (c, m) => { log((c ? "✔ " : "✘ ") + m); if (!c) errors.push(m); };
+  try {
+    await sleep(2500);
+    check(/\d\.\d{3}/.test($("#value").textContent), "lecturas del simulador: " + $("#value").textContent);
+    $("#rec-name").value = "e2e";
+    $("#rec-start").click();
+    await sleep(2500);
+    $("#rec-stop").click();
+    await sleep(500);
+    const ses = await w.DB.sessions();
+    check(ses.length >= 1 && ses[0].name === "e2e" && ses[0].count >= 3 && ses[0].ended, `sesión grabada (${ses[0]?.count} lecturas)`);
+    $("#snap-note").value = "nota";
+    $("#snap").click();
+    check(await until(() => $("#snaps").children.length >= 1), "captura guardada");
+    $("#inv-btn").click();
+    await sleep(1200);
+    check($("#value").textContent.startsWith("-") && $("#flags").textContent.includes("INV"), "invertir: " + $("#value").textContent);
+    $("#inv-btn").click();
+    w.document.querySelector("#sessions tr[data-id]").click();
+    check(await until(() => $("#viewer").open && /Lecturas/.test($("#v-meta").textContent)), "visor de sesión");
+    $("#viewer").close();
+    const dump = await w.DB.exportAll();
+    const before = (await w.DB.sessions()).length;
+    await w.DB.importAll(JSON.parse(JSON.stringify(dump)));
+    check((await w.DB.sessions()).length === before * 2, "copia de seguridad: exportar + importar");
+    const csv = w.eval("toCSV")(await w.DB.readings(ses[0].id));
+    check(csv.split("\n").length >= 4 && csv.startsWith("fecha,"), "CSV de sesión");
+    for (const s of await w.DB.sessions()) await w.DB.deleteSession(s.id);
+    await w.DB.clearSnapshots();
+  } catch (e) { errors.push(e.stack || String(e)); }
+  log(errors.length ? "FALLOS:\n" + errors.join("\n") : "TODO OK");
+  document.body.dataset.done = "1";
+};
+</script>
