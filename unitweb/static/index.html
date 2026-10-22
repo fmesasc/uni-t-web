@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UNI-T Web</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='5' y='2' width='22' height='28' rx='4' fill='%23e8b400'/><rect x='8' y='5' width='16' height='9' rx='1' fill='%23233'/><circle cx='16' cy='22' r='4.5' fill='%23233'/></svg>">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="logo"></span>UNI-T <b>Web</b></div>
+  <div class="conn">
+    <span id="state" class="pill">—</span>
+    <select id="device" title="Dispositivo"></select>
+    <button id="refresh" class="icon" title="Buscar dispositivos">⟳</button>
+    <select id="model" title="Modelo"></select>
+    <button id="connect" class="primary">Conectar</button>
+  </div>
+</header>
+<div id="error" class="banner" hidden></div>
+
+<main>
+  <section class="card meter" id="meter">
+    <div class="lcd" id="lcd">
+      <div class="lcd-top">
+        <span id="mode" class="mode">—</span>
+        <span class="flags" id="flags"></span>
+      </div>
+      <div class="lcd-main">
+        <span id="value" class="value">----</span>
+        <span id="unit" class="unit"></span>
+      </div>
+      <div class="lcd-sub">
+        <span id="rel" hidden></span>
+        <span id="verdict" hidden></span>
+        <span id="alarm" hidden></span>
+      </div>
+      <div class="bar"><div id="bar"></div></div>
+    </div>
+    <div class="stats">
+      <div><label>Mín</label><span id="s-min">—</span></div>
+      <div><label>Máx</label><span id="s-max">—</span></div>
+      <div><label>Media</label><span id="s-avg">—</span></div>
+      <div><label>Desv. σ</label><span id="s-sd">—</span></div>
+      <div><label>Pico-pico</label><span id="s-pp">—</span></div>
+      <div><label>Lecturas</label><span id="s-n">0</span></div>
+      <div><label>Ritmo</label><span id="s-rate">—</span></div>
+      <div><button id="s-reset" class="ghost small" title="Reiniciar estadísticas">Reiniciar</button></div>
+    </div>
+    <div class="actions">
+      <input id="snap-note" placeholder="Nota para la captura (opcional)">
+      <button id="snap" title="Atajo: espacio">📌 Capturar</button>
+    </div>
+    <div class="toolbar">
+      <button id="inv-btn" class="small" title="Invierte el signo de tensión y corriente DC, por si las puntas están al revés (atajo: I). Afecta también a lo que se graba">± Invertir</button>
+      <button id="rel-btn" class="small" title="Fija la lectura actual como referencia y muestra la diferencia (atajo: R)">Δ REL</button>
+      <button id="voice-btn" class="small" title="Lee el valor en voz alta cuando se estabiliza (atajo: V)">🔈 Voz</button>
+      <button id="fs-btn" class="small" title="Pantalla completa (atajo: F)">⛶ Pantalla completa</button>
+    </div>
+  </section>
+
+  <section class="card tools">
+    <div class="tabs" id="tool-tabs">
+      <button data-tab="rec" class="on">Grabación</button>
+      <button data-tab="alarm">Alarmas</button>
+      <button data-tab="sort">Clasificar</button>
+    </div>
+
+    <div data-pane="rec">
+      <div id="rec-idle" class="form">
+        <input id="rec-name" placeholder="Nombre de la sesión">
+        <div class="row">
+          <label class="inline">Guardar cada
+            <select id="rec-interval">
+              <option value="0">lectura</option>
+              <option value="1">1 s</option>
+              <option value="5">5 s</option>
+              <option value="10">10 s</option>
+              <option value="30">30 s</option>
+              <option value="60">1 min</option>
+              <option value="300">5 min</option>
+            </select>
+          </label>
+          <label class="inline">Parar tras
+            <select id="rec-max">
+              <option value="0">nunca</option>
+              <option value="60">1 min</option>
+              <option value="300">5 min</option>
+              <option value="900">15 min</option>
+              <option value="3600">1 h</option>
+              <option value="14400">4 h</option>
+              <option value="43200">12 h</option>
+              <option value="86400">24 h</option>
+            </select>
+          </label>
+        </div>
+        <label class="inline"><input type="checkbox" id="rec-skiphold"> Ignorar lecturas en HOLD</label>
+        <button id="rec-start" class="rec">● Grabar</button>
+      </div>
+      <div id="rec-active" class="rec-active" hidden>
+        <span class="dot"></span>
+        <div><b id="rec-title"></b><small id="rec-info"></small></div>
+        <button id="rec-stop">■ Parar</button>
+      </div>
+    </div>
+
+    <div data-pane="alarm" hidden class="form">
+      <p class="hint">Avisa cuando la lectura sale del rango. Admite sufijos: <code>4.7k</code>, <code>220m</code>, <code>10µ</code>.</p>
+      <div class="row">
+        <label class="field">Mínimo<input id="al-lo" placeholder="sin límite" inputmode="decimal"></label>
+        <label class="field">Máximo<input id="al-hi" placeholder="sin límite" inputmode="decimal"></label>
+      </div>
+      <label class="inline"><input type="checkbox" id="al-sound" checked> Pitido</label>
+      <label class="inline"><input type="checkbox" id="al-notify"> Notificación del navegador</label>
+      <label class="inline"><input type="checkbox" id="al-stop"> Parar la grabación al dispararse</label>
+      <div class="row"><button id="al-on">Activar alarma</button><span id="al-state" class="hint"></span></div>
+    </div>
+
+    <div data-pane="sort" hidden class="form">
+      <p class="hint">Comprueba componentes contra un valor nominal. Con la captura automática, cada pieza
+        se guarda sola cuando la lectura se estabiliza; separa las puntas entre pieza y pieza.</p>
+      <div class="row">
+        <label class="field">Valor nominal<input id="so-nom" placeholder="p. ej. 10k" inputmode="decimal"></label>
+        <label class="field">Tolerancia
+          <select id="so-tol">
+            <option value="0.1">±0,1 %</option><option value="0.5">±0,5 %</option>
+            <option value="1">±1 %</option><option value="2">±2 %</option>
+            <option value="5" selected>±5 %</option><option value="10">±10 %</option>
+            <option value="20">±20 %</option>
+          </select>
+        </label>
+      </div>
+      <label class="inline"><input type="checkbox" id="so-auto"> Captura automática al estabilizarse</label>
+      <div class="row"><button id="so-on">Activar</button><span id="so-count" class="hint"></span></div>
+    </div>
+  </section>
+
+  <section class="card chart-card">
+    <div class="chart-head">
+      <h2>Gráfica en vivo</h2>
+      <div class="seg" id="window">
+        <button data-w="30">30 s</button>
+        <button data-w="120" class="on">2 min</button>
+        <button data-w="600">10 min</button>
+        <button data-w="3600">1 h</button>
+        <button data-w="0">Todo</button>
+      </div>
+      <button id="pause" class="ghost small">Pausar</button>
+      <div class="menu">
+        <button class="ghost small" data-menu>Exportar ▾</button>
+        <div class="menu-list" hidden>
+          <button id="live-png">Imagen PNG</button>
+          <button id="live-csv">Datos CSV</button>
+          <button id="live-json">Datos JSON</button>
+          <button id="live-copy">Copiar al portapapeles (tabla)</button>
+        </div>
+      </div>
+    </div>
+    <canvas id="chart"></canvas>
+    <p class="hint chart-hint">Arrastra sobre la gráfica para ampliar · doble clic para volver</p>
+  </section>
+
+  <section class="card list-card">
+    <div class="tabs" id="list-tabs">
+      <button data-tab="sessions" class="on">Sesiones</button>
+      <button data-tab="snaps">Capturas</button>
+      <span class="spacer"></span>
+      <a class="btn ghost small" href="/api/backup" title="Descarga toda la base de datos (SQLite)">💾 Copia de seguridad</a>
+    </div>
+    <div data-pane="sessions" class="pane-scroll">
+      <table class="list"><thead><tr><th>Nombre</th><th>Inicio</th><th>Duración</th><th class="r">N</th><th class="r">Mín / Máx</th><th></th></tr></thead>
+      <tbody id="sessions"></tbody></table>
+      <p class="empty" id="sessions-empty">Aún no hay sesiones grabadas.</p>
+    </div>
+    <div data-pane="snaps" class="pane-scroll" hidden>
+      <div class="tab-tools">
+        <a class="btn ghost small" href="/api/snapshots/csv">Exportar CSV</a>
+        <button id="snaps-clear" class="ghost small danger">Borrar todas</button>
+      </div>
+      <table class="list"><thead><tr><th>Fecha</th><th class="r">Valor</th><th>Modo</th><th>Nota</th><th></th></tr></thead>
+      <tbody id="snaps"></tbody></table>
+      <p class="empty" id="snaps-empty">Aún no hay capturas.</p>
+    </div>
+  </section>
+</main>
+
+<dialog id="viewer">
+  <form method="dialog" class="viewer">
+    <div class="viewer-head">
+      <input id="v-name" class="title-input">
+      <button class="ghost" value="close">✕</button>
+    </div>
+    <div class="viewer-meta" id="v-meta"></div>
+    <canvas id="v-chart"></canvas>
+    <p class="hint">Arrastra para ampliar · doble clic para volver. Las estadísticas se calculan sobre la zona visible.</p>
+    <textarea id="v-notes" placeholder="Notas de la sesión"></textarea>
+    <div class="viewer-foot">
+      <button type="button" id="v-png">Imagen PNG</button>
+      <a id="v-csv" class="btn">CSV</a>
+      <a id="v-json" class="btn">JSON</a>
+      <button type="button" id="v-save" class="primary">Guardar cambios</button>
+      <button type="button" id="v-delete" class="danger">Borrar sesión</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast" hidden></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

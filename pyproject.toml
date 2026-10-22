@@ -1,0 +1,23 @@
+[project]
+name = "unitweb"
+version = "0.1.0"
+description = "Interfaz web para multímetros UNI-T (UT61C y compatibles) en Linux"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["aiohttp>=3.9", "pyserial>=3.5"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+unitweb = "unitweb.server:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["unitweb*"]
+
+[tool.setuptools.package-data]
+unitweb = ["static/*"]

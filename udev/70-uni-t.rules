@@ -1,0 +1,12 @@
+# UNI-T UT-D04 USB cables (and clones): give logged-in users access to the
+# hidraw node so unitweb can read the multimeter without root.
+#   sudo cp udev/70-uni-t.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload && sudo udevadm trigger
+# then unplug and replug the cable.
+
+# WCH CH9325
+KERNEL=="hidraw*", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="e008", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+# Hoitek HE2325U
+KERNEL=="hidraw*", ATTRS{idVendor}=="04fa", ATTRS{idProduct}=="2490", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+# Silicon Labs CP2110 built into the UT61B+/D+/E+ and UT161 series
+KERNEL=="hidraw*", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea80", MODE="0660", GROUP="plugdev", TAG+="uaccess"
