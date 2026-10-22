@@ -15,6 +15,7 @@
     { vendorId: 0x04fa, productId: 0x2490 },   // Hoitek HE2325U
   ];
   const CP2110_IDS = [{ vendorId: 0x10c4, productId: 0xea80 }];
+  const SERIAL_BRIDGES = { 0x067b: "Prolific PL2303", 0x1a86: "WCH CH340", 0x10c4: "Silabs CP210x", 0x0403: "FTDI" };
   const matches = (dev, ids) => ids.some((f) => f.vendorId === dev.vendorId && f.productId === dev.productId);
   const u8 = (dv) => new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
 
@@ -85,7 +86,8 @@
     constructor(port, cfg) { this.port = port; this.cfg = cfg; }
     get label() {
       const i = this.port.getInfo?.() || {};
-      return i.usbVendorId ? `Puerto serie USB ${i.usbVendorId.toString(16).padStart(4, "0")}:${(i.usbProductId || 0).toString(16).padStart(4, "0")}` : "Puerto serie";
+      if (!i.usbVendorId) return "Puerto serie";
+      return SERIAL_BRIDGES[i.usbVendorId] || `USB-serie ${i.usbVendorId.toString(16).padStart(4, "0")}:${(i.usbProductId || 0).toString(16).padStart(4, "0")}`;
     }
 
     async open(onData, onClose) {

@@ -110,7 +110,7 @@ function setupConnection() {
   const prefs = store.get("conn", {});
   $("#model").innerHTML = Object.keys(Protocols.MODELS).map((m) => `<option>${esc(m)}</option>`).join("");
   $("#model").value = Protocols.MODELS[prefs.model] ? prefs.model : "UT61C";
-  $("#link").value = prefs.kind || "hid";
+  $("#link").value = prefs.kind || "serial";
   $("#link option[value=hid]").disabled = !hasHid;
   $("#link option[value=serial]").disabled = !hasSerial;
   if (!hasHid && !hasSerial) { $("#support").hidden = false; $("#link").value = "sim"; }
@@ -150,6 +150,9 @@ async function connect(kind, model, { device, port, pick = false } = {}) {
       meter.hidDevice = dev;
       link = Drivers.makeHidLink(dev, cfg);
     } else {
+      if (!port && (pick || !(await navigator.serial.getPorts()).length)) {
+        toast("En la lista elige el adaptador USB-serie (p. ej. «USB-Serial Controller» o ttyUSB0)", 6000);
+      }
       port ||= (!pick && (await navigator.serial.getPorts())[0]) || (await navigator.serial.requestPort());
       link = new Drivers.SerialLink(port, cfg);
     }

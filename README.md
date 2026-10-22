@@ -41,7 +41,15 @@ Firefox y Safari no tienen WebHID ni Web Serial.
 | UT60A, UT60E | FS9721, 2400 8N1 | UT-D04 / UT-D02 | sin probar con hardware |
 | UT61B+, UT61D+, UT61E+, UT161B/D/E | protocolo `AB CD` por petición, 9600 | USB con CP2110 | experimental |
 
-Cables USB reconocidos: `1a86:e008` (WCH CH9325), `04fa:2490` (Hoitek HE2325U) y `10c4:ea80` (CP2110).
+Hay dos tipos de cable USB, y en la web se elige cuál usas:
+
+- **Cable USB-serie** (adaptador PL2303, CH340, CP210x o FTDI, con el cable RS-232 UT-D02 o uno
+  óptico con chip serie): en Linux aparece como `/dev/ttyUSB0`. En la web elige
+  *Cable USB-serie* y, en la lista del navegador, el adaptador (p. ej. «USB-Serial Controller»).
+- **Cable USB HID UT-D04** (`1a86:e008` WCH CH9325 o `04fa:2490` Hoitek HE2325U) y los UT61+
+  (`10c4:ea80` CP2110): no crean `/dev/ttyUSB*`. En la web elige *Cable USB HID*.
+
+¿Cuál tienes? En Linux, `lsusb`: si sale *Prolific*, *QinHeng CH340*, *CP210x* o *FTDI*, es serie.
 
 > **Activa el envío de datos en el multímetro.** En el UT61C, mantén pulsado `REL` hasta que aparezca
 > `RS232` en la pantalla. Si la web dice *"Sin datos"*, casi siempre es esto.
