@@ -91,11 +91,20 @@
     }
 
     async open(onData, onClose) {
+      await this.openPort();
+      this.running = true;
+      this.loop(onData, onClose);
+    }
+
+    async openPort() {
       await this.port.open({ baudRate: this.cfg.baud, dataBits: this.cfg.dataBits, parity: this.cfg.parity, stopBits: 1 });
       // the opto receiver of the RS-232 cable is powered from DTR (high) and RTS (low)
       await this.port.setSignals({ dataTerminalReady: true, requestToSend: false }).catch(() => {});
-      this.running = true;
-      (async () => {
+    }
+
+    async loop(onData, onClose) {
+      let retries = 0;
+      while (this.running) {
         try {
           while (this.running && this.port.readable) {
             this.reader = this.port.readable.getReader();
@@ -103,14 +112,29 @@
               for (;;) {
                 const { value, done } = await this.reader.read();
                 if (done) break;
-                if (value) onData(Array.from(value));
+                if (value?.length) { onData(Array.from(value)); retries = 0; }
               }
+            } catch (e) {
+              // a line break or a garbled byte (meter off, cable unpowered) is not fatal:
+              // the port hands out a fresh readable stream and reading goes on
+              if (!["BreakError", "FramingError", "ParityError", "BufferOverrunError"].includes(e.name)) throw e;
             } finally { this.reader.releaseLock(); }
           }
+          if (this.running) throw new Error("El puerto se cerró");
         } catch (e) {
-          if (this.running) onClose(e.message || String(e));
+          if (!this.running) return;
+          // "device lost" with the adapter still plugged in: reopen it a few times before giving up
+          const stillThere = (await navigator.serial.getPorts()).includes(this.port);
+          if (stillThere && retries++ < 3) {
+            try { await this.port.close(); } catch {}
+            await new Promise((r) => setTimeout(r, 1000));
+            try { await this.openPort(); } catch {}
+            continue;
+          }
+          onClose(e.message || String(e));
+          return;
         }
-      })();
+      }
     }
 
     async close() {
