@@ -171,7 +171,35 @@ Pulsarlo otra vez lo deja todo como estaba.
   decimal, lista para pegar en una hoja de cálculo en español.
 - O descarga el **CSV** (separado por comas y con punto decimal, el formato estándar).
 
-### 6. Ver el valor desde lejos o sin mirar
+### 6. Ver la gráfica de un CSV que ya tenías guardado
+
+Pestaña **Sesiones → 📂 Abrir CSV…**, o **arrastra el fichero** a cualquier parte de la página.
+
+- Los CSV exportados por esta web se abren directamente, con todos sus datos.
+- Cualquier otro CSV o TXT (de una hoja de cálculo, de un registrador, el `.txt` del software de
+  UNI-T…) abre un diálogo con **vista previa de la gráfica**. La web detecta sola el separador
+  (`,` `;` tabulador), la coma decimal, la columna de tiempo y la de valor, y la unidad (de una
+  cabecera como `Tensión (mV)`, de una columna *Unidad* o de celdas como `10.2 kΩ`). Puedes
+  cambiar cualquiera de ellas antes de abrir.
+- El tiempo puede ser una fecha (`22/10/2026 10:00:00`, `2026-10-22 10:00:00`), solo la hora,
+  segundos transcurridos o no existir (entonces toma una fila por segundo).
+
+El fichero se guarda como una sesión más: tienes su gráfica con zoom, las estadísticas, ± Invertir,
+notas y exportación a PNG. Si no quieres conservarla, bórrala desde el visor.
+
+Ejemplo de CSV que se abre tal cual:
+
+```
+Fecha;Tensión (mV)
+22/10/2026 10:00:00;3300,0
+22/10/2026 10:00:01;3299,5
+22/10/2026 10:00:02;3298,9
+```
+
+> Un `.xls` de Excel de verdad (binario) no se puede leer: ábrelo en Excel o LibreOffice y
+> guárdalo como CSV.
+
+### 7. Ver el valor desde lejos o sin mirar
 
 - **⛶ Pantalla completa** (tecla `F`): números enormes, para leerlos desde el otro lado del banco.
 - **🔈 Voz** (tecla `V`): lee el valor en voz alta cada vez que se estabiliza. Útil cuando tienes
@@ -189,6 +217,7 @@ Pulsarlo otra vez lo deja todo como estaba.
 - **Exportar** la gráfica (PNG con título y estadísticas) y los datos (CSV, JSON, portapapeles).
 - **Sesiones grabadas** con notas, intervalo de guardado, parada automática y opción de ignorar HOLD.
 - **Capturas** puntuales con nota.
+- **Abrir CSV/TXT/JSON** guardados (de esta web o de otros programas) para ver su gráfica.
 - **Δ REL**, **± Invertir**, **alarmas** (pitido, notificación, parar grabación), **clasificador**
   por tolerancia, **voz** y **pantalla completa**.
 - **Copia de seguridad**: menú *💾 Datos* → descargar o restaurar todo en un JSON.
@@ -263,13 +292,15 @@ css/style.css
 js/protocols.js   parsers FS9922, ES51922, FS9721 y UT61+ (también se usan desde Node)
 js/drivers.js     WebHID (UT-D04, CP2110), Web Serial y simulador
 js/db.js          almacenamiento en IndexedDB
+js/csvimport.js   lectura de CSV/TXT de otros programas
 js/app.js         interfaz
 tests/            tests de protocolos y test de extremo a extremo
 udev/             regla udev para Linux
 ```
 
 ```bash
-node tests/protocols.test.js                    # tests de protocolos (o abre tests/index.html)
+node tests/protocols.test.js                    # tests de protocolos
+node tests/csvimport.test.js                    # tests de importación de CSV (o abre tests/index.html)
 python3 -m http.server 8000                     # y abre http://localhost:8000/tests/e2e.html
 ```
 

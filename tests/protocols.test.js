@@ -99,7 +99,7 @@
     console.log(report);
     process.exit(failed.length ? 1 : 0);
   } else {
-    document.body.textContent = report;
-    document.body.dataset.result = failed.length ? "fail" : "pass";
+    document.body.textContent += report + "\n\n";
+    if (failed.length || !document.body.dataset.result) document.body.dataset.result = failed.length ? "fail" : "pass";
   }
 })();

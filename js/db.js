@@ -106,6 +106,21 @@
         keys.forEach((k) => r.delete(k));
       });
     },
+    /** Creates a finished session from readings read out of a file. */
+    importSession(meta, readings) {
+      return tx(["sessions", "readings"], "readwrite", async (s, r) => {
+        let min = null, max = null;
+        for (const { value: v } of readings) if (v !== null) { min = min === null || v < min ? v : min; max = max === null || v > max ? v : max; }
+        const id = await result(s.add({
+          name: meta.name, model: meta.model || "Importado", notes: meta.notes || "",
+          started: readings[0]?.ts ?? Date.now() / 1000, ended: readings[readings.length - 1]?.ts ?? Date.now() / 1000,
+          count: readings.length, min, max,
+          unit: readings.find((x) => x.unit)?.unit || "" }));
+        for (const x of readings) r.add({ ...pick(x), sessionId: id, note: x.note || "" });
+        return id;
+      });
+    },
+
     /** Flips the polarity of every DC V/A reading of a session (probes were swapped). */
     flipSession(id) {
       return tx(["sessions", "readings"], "readwrite", async (s, r) => {

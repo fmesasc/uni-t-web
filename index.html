@@ -184,8 +184,13 @@
         </div>
       </div>
       <input type="file" id="backup-file" accept=".json,application/json" hidden>
+      <input type="file" id="open-input" accept=".csv,.tsv,.txt,.xls,.json,text/csv,text/plain" hidden>
     </div>
     <div data-pane="sessions" class="pane-scroll">
+      <div class="tab-tools">
+        <span class="hint">También puedes arrastrar un fichero a la página.</span>
+        <button id="open-file" class="ghost small" title="Ver la gráfica de un CSV o TXT guardado (también del software de UNI-T o de una hoja de cálculo)">📂 Abrir CSV…</button>
+      </div>
       <table class="list"><thead><tr><th>Nombre</th><th>Inicio</th><th>Duración</th><th class="r">N</th><th class="r">Mín / Máx</th><th></th></tr></thead>
       <tbody id="sessions"></tbody></table>
       <p class="empty" id="sessions-empty">Aún no hay sesiones grabadas.</p>
@@ -223,6 +228,31 @@
   </form>
 </dialog>
 
+<dialog id="importer">
+  <form method="dialog" class="viewer">
+    <div class="viewer-head">
+      <h3 id="im-title" class="dialog-title"></h3>
+      <button class="ghost" value="close">✕</button>
+    </div>
+    <p class="hint">Comprueba qué columna es el tiempo y cuál el valor; la gráfica de abajo se actualiza al cambiarlas.</p>
+    <div class="row">
+      <label class="field">Nombre<input id="im-name"></label>
+      <label class="field">Columna de tiempo<select id="im-time"></select></label>
+      <label class="field">Columna de valor<select id="im-value"></select></label>
+      <label class="field">Unidad<input id="im-unit" placeholder="V, mV, A, kΩ, °C…"></label>
+    </div>
+    <canvas id="im-chart"></canvas>
+    <p class="hint" id="im-info"></p>
+    <div class="pane-scroll"><table class="list" id="im-preview"></table></div>
+    <div class="viewer-foot">
+      <button type="button" id="im-ok" class="primary">Abrir y guardar como sesión</button>
+      <button value="close">Cancelar</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="drop-hint" aria-hidden="true">Suelta el fichero para ver su gráfica</div>
+
 <footer class="foot">
   <span id="usage"></span>
   <span>Los datos se guardan solo en este navegador · <a href="https://github.com/fmesasc/uni-t-web">Código en GitHub</a></span>
@@ -232,6 +262,7 @@
 <script src="js/protocols.js"></script>
 <script src="js/drivers.js"></script>
 <script src="js/db.js"></script>
+<script src="js/csvimport.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

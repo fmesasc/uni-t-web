@@ -56,6 +56,21 @@ f.onload = async () => {
     check((await w.DB.sessions()).length === before * 2, "copia de seguridad: exportar + importar");
     const csv = w.eval("toCSV")(await w.DB.readings(ses[0].id));
     check(csv.split("\n").length >= 4 && csv.startsWith("fecha,"), "CSV de sesión");
+    // open a spreadsheet CSV: column picker dialog, then a new session in the viewer
+    const csvFile = new w.File(["Fecha;Tensión (mV)\n22/10/2026 10:00:00;3,297\n22/10/2026 10:00:01;3,310\n22/10/2026 10:00:02;3,305\n"],
+      "bateria.csv", { type: "text/csv" });
+    await w.eval("openFile")(csvFile);
+    check(await until(() => $("#importer").open && !$("#im-ok").disabled), "diálogo de importación con vista previa");
+    $("#im-ok").click();
+    check(await until(() => $("#viewer").open && $("#v-name").value === "bateria"), "CSV abierto en el visor");
+    const imp = (await w.DB.sessions()).find((x) => x.name === "bateria");
+    check(imp && imp.count === 3 && Math.abs(imp.max - 0.00331) < 1e-12, `sesión importada (${imp?.count} lecturas, máx ${imp?.max})`);
+    $("#viewer").close();
+    // our own export goes straight in, no questions
+    const own = new w.File([csv], "propio.csv", { type: "text/csv" });
+    await w.eval("openFile")(own);
+    check(await until(() => $("#viewer").open && $("#v-name").value === "propio"), "CSV propio abierto directamente");
+    $("#viewer").close();
     for (const s of await w.DB.sessions()) await w.DB.deleteSession(s.id);
     await w.DB.clearSnapshots();
   } catch (e) { errors.push(e.stack || String(e)); }

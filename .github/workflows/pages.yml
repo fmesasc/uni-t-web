@@ -24,6 +24,7 @@ jobs:
         with:
           node-version: 22
       - run: node tests/protocols.test.js
+      - run: node tests/csvimport.test.js
 
   deploy:
     if: github.event_name != 'pull_request'

@@ -891,9 +891,92 @@ $("#v-delete").onclick = async () => {
   $("#viewer").close(); loadSessions();
 };
 
+// ---------- open a saved CSV / TXT / JSON ----------
+let importing = null;   // {file, a (analysis), name, pts}
+$("#open-file").onclick = () => $("#open-input").click();
+$("#open-input").onchange = (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) openFile(f); };
+document.addEventListener("dragover", (e) => {
+  if (![...e.dataTransfer.types].includes("Files")) return;
+  e.preventDefault(); document.body.classList.add("dropping");
+});
+document.addEventListener("dragleave", (e) => { if (!e.relatedTarget) document.body.classList.remove("dropping"); });
+document.addEventListener("drop", (e) => {
+  if (!e.dataTransfer.files.length) return;
+  e.preventDefault(); document.body.classList.remove("dropping");
+  openFile(e.dataTransfer.files[0]);
+});
+
+async function openFile(file) {
+  const name = file.name.replace(/\.[^.]+$/, "");
+  try {
+    const text = await file.text();
+    if (/\.json$/i.test(file.name) || /^\s*[{[]/.test(text)) {
+      const data = JSON.parse(text);
+      if (data?.app === "unitweb") {   // full backup
+        const n = await DB.importAll(data);
+        toast(`Restauradas ${n.sessions} sesiones y ${n.readings} lecturas`);
+        return Promise.all([loadSessions(), loadSnaps()]);
+      }
+      const j = CsvImport.fromJSON(data);
+      if (!j) throw new Error("Este JSON no tiene lecturas que pueda mostrar");
+      return saveImported({ name: j.name || name, notes: j.notes || `Importado de ${file.name}` }, j.readings);
+    }
+    const a = CsvImport.analyze(text);
+    if (a.own) return saveImported({ name, notes: `Importado de ${file.name}` }, CsvImport.build(a));
+    importing = { file, a, name };
+    showImporter();
+  } catch (err) { toast(err.message || String(err), 5000); }
+}
+
+async function saveImported(meta, readings) {
+  if (!readings.length) return toast("No he encontrado lecturas en el fichero", 4000);
+  const id = await DB.importSession(meta, readings);
+  toast(`«${meta.name}»: ${readings.length} lecturas, guardado en Sesiones`, 4000);
+  showListTab("sessions");
+  await loadSessions();
+  openSession(id);
+}
+
+function showImporter() {
+  const { a, file, name } = importing;
+  const opt = (c) => `<option value="${c.index}">${esc(c.name)}</option>`;
+  $("#im-title").textContent = `Abrir ${file.name}`;
+  $("#im-name").value = name;
+  $("#im-time").innerHTML = `<option value="-1">(sin tiempo: una fila por segundo)</option>` + a.columns.map(opt).join("");
+  $("#im-time").value = a.timeCol;
+  const numeric = a.columns.filter((c) => c.kind === "number");
+  $("#im-value").innerHTML = (numeric.length ? numeric : a.columns).map(opt).join("");
+  $("#im-value").value = a.valueCol;
+  $("#im-unit").value = a.unit;
+  const sep = { "\t": "tabulador", ";": "punto y coma", ",": "coma", "|": "barra" }[a.delimiter];
+  $("#im-info").textContent = `${a.rows.length} filas · separador: ${sep}${a.decimalComma ? " · coma decimal" : ""}`;
+  $("#im-preview").innerHTML = `<thead><tr>${a.header.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>`
+    + a.rows.slice(0, 5).map((r) => `<tr>${a.header.map((_, i) => `<td>${esc(r[i])}</td>`).join("")}</tr>`).join("") + "</tbody>";
+  $("#importer").showModal();
+  previewImport();
+}
+function previewImport() {
+  let pts = [];
+  try {
+    pts = CsvImport.build(importing.a, { timeCol: +$("#im-time").value, valueCol: +$("#im-value").value,
+      unit: $("#im-unit").value, baseTs: importing.file.lastModified / 1000 });
+  } catch {}
+  importing.pts = pts;
+  const c = $("#im-chart");
+  drawChart(c, pts, { unit: pts[0]?.unit || "", hover: c._hover });
+  $("#im-ok").disabled = !pts.length;
+  $("#im-ok").textContent = pts.length ? `Abrir ${pts.length} lecturas y guardar como sesión` : "No hay lecturas válidas";
+}
+["#im-time", "#im-value", "#im-unit"].forEach((s) => $(s).addEventListener("input", previewImport));
+attachInteractions($("#im-chart"), () => importing && drawChart($("#im-chart"), importing.pts, { unit: importing.pts[0]?.unit || "", hover: $("#im-chart")._hover }), () => {});
+$("#im-ok").onclick = async () => {
+  $("#importer").close();
+  await saveImported({ name: $("#im-name").value.trim() || importing.name, notes: `Importado de ${importing.file.name}` }, importing.pts);
+};
+
 // ---------- keyboard ----------
 document.addEventListener("keydown", (e) => {
-  if (e.target.closest("input, textarea, select") || e.ctrlKey || e.metaKey || e.altKey || $("#viewer").open) return;
+  if (e.target.closest("input, textarea, select") || e.ctrlKey || e.metaKey || e.altKey || $("dialog[open]")) return;
   const k = e.key.toLowerCase();
   const act = { " ": snapshot, r: toggleRel, v: toggleVoice, f: toggleFullscreen, i: toggleInvert, p: togglePause }[k];
   if (act) { e.preventDefault(); act(); }
