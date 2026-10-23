@@ -19,6 +19,10 @@ f.onload = async () => {
   try {
     await sleep(2500);
     check(/\d\.\d{3}/.test($("#value").textContent), "lecturas del simulador: " + $("#value").textContent);
+    $("#win-min").value = "5"; $("#win-min").dispatchEvent(new Event("change"));
+    check(w.eval("windowSec") === 300 && $(".win-custom").classList.contains("on") && !$("#window button.on"), "ventana a medida: 5 min");
+    $('#window button[data-w="120"]').click();
+    check(w.eval("windowSec") === 120 && $("#win-min").value === "", "volver a 2 min");
     $("#rec-name").value = "e2e";
     $("#rec-start").click();
     await sleep(2500);

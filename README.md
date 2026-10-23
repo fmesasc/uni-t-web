@@ -211,7 +211,7 @@ Fecha;Tensión (mV)
 
 - **Pantalla** como la del multímetro: modo, indicadores (AUTO, HOLD, REL, MAX, MIN, BAT) y barra.
 - **Estadísticas** en vivo: mínimo, máximo, media, desviación típica, pico a pico y lecturas por segundo.
-- **Gráfica en vivo** (30 s, 2 min, 10 min, 1 h o todo). Arrastra para ampliar y haz doble clic para volver.
+- **Gráfica en vivo** (30 s, 2 min, 10 min, 1 h, todo, o los minutos que escribas en la casilla). Arrastra para ampliar y haz doble clic para volver.
   Si cambias de modo en el multímetro, la gráfica muestra el modo actual, pero los datos del
   anterior no se borran: vuelven al volver a ese modo. *Exportar ▾ → Vaciar gráfica* la limpia.
 - **Exportar** la gráfica (PNG con título y estadísticas) y los datos (CSV, JSON, portapapeles).

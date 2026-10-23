@@ -651,15 +651,23 @@ function drawLive() {
     : "Arrastra sobre la gráfica para ampliar · doble clic para volver";
 }
 attachInteractions($("#chart"), drawLive, (z) => { liveZoom = z; });
-$("#window").onclick = (e) => {
-  const b = e.target.closest("button"); if (!b) return;
-  windowSec = +b.dataset.w; liveZoom = null;
-  $$("#window button").forEach((x) => x.classList.toggle("on", x === b));
+function setWindow(sec) {
+  windowSec = sec; liveZoom = null;
+  let match = false;
+  $$("#window button").forEach((x) => { const on = +x.dataset.w === sec; x.classList.toggle("on", on); match ||= on; });
+  $(".win-custom").classList.toggle("on", !match);
+  $("#win-min").value = match ? "" : +(sec / 60).toFixed(2);
   store.set("window", windowSec);
   drawLive();
+}
+$("#window").onclick = (e) => { const b = e.target.closest("button"); if (b) setWindow(+b.dataset.w); };
+$("#win-min").onchange = () => {
+  const m = parseFloat($("#win-min").value.replace(",", "."));
+  if (m > 0) setWindow(Math.round(Math.min(m, 1440) * 60));
+  else setWindow(windowSec);
 };
-const savedWin = store.get("window", 120);
-$$("#window button").forEach((b) => { if (+b.dataset.w === savedWin) b.click(); });
+$("#win-min").onkeydown = (e) => { if (e.key === "Enter") e.target.blur(); };
+setWindow(store.get("window", 120));
 function togglePause() { paused = !paused; $("#pause").textContent = paused ? "Reanudar" : "Pausar"; drawLive(); }
 $("#pause").onclick = togglePause;
 window.addEventListener("resize", () => { drawLive(); if ($("#viewer").open) drawViewer(); });
