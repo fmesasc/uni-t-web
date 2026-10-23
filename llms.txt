@@ -2,7 +2,7 @@
 
 > Programa web gratuito y de código abierto (MIT) para leer multímetros UNI-T desde el navegador por USB, sin instalar el software oficial de Windows. Funciona en Windows, Linux, macOS y ChromeOS con Chrome, Edge, Brave u Opera (WebHID y Web Serial). Todo se ejecuta en el navegador; los datos se guardan solo en local (IndexedDB).
 
-Autor: Francisco Mesa (https://fmesasc.com)
+Autor: FM Lab (https://fmesasc.com)
 
 ## Uso
 

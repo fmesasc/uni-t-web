@@ -311,4 +311,4 @@ chips, el software oficial de UNI-T (UT61C_D V3.03 / UT61E V4.01) y
 
 ## Licencia
 
-[MIT](LICENSE) · Hecho por [Francisco Mesa](https://fmesasc.com)
+[MIT](LICENSE) · Hecho por [FM Lab](https://fmesasc.com)
