@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Preparar la web
-        run: mkdir _site && cp -r index.html css js tests udev LICENSE _site/
+        run: mkdir _site && cp -r index.html css js tests udev LICENSE og.png sitemap.xml llms.txt _site/
       - uses: actions/upload-pages-artifact@v3
       - id: deployment
         uses: actions/deploy-pages@v4

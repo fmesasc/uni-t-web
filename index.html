@@ -3,14 +3,82 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UNI-T Web</title>
+<title>UNI-T Web · Software para multímetros UNI-T UT61C en el navegador</title>
+<meta name="description" content="Lee multímetros UNI-T (UT61C, UT61E, UT60E, UT61E+ y compatibles) desde el navegador por USB. Gráfica en vivo, grabación, alarmas y exportación a CSV y PNG. Gratis, sin instalar nada, en Windows, Linux y Mac.">
+<meta name="keywords" content="UNI-T, UT61C, UT61E, UT61B, UT61D, UT60E, UT61E+, UT161, multímetro, software multímetro, data logger, Linux, WebHID, Web Serial, UT-D04, PL2303">
+<meta name="author" content="Francisco Mesa">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://fmesasc.github.io/uni-t-web/">
+<link rel="author" href="https://fmesasc.com">
+<meta name="theme-color" content="#e8b400">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='5' y='2' width='22' height='28' rx='4' fill='%23e8b400'/><rect x='8' y='5' width='16' height='9' rx='1' fill='%23233'/><circle cx='16' cy='22' r='4.5' fill='%23233'/></svg>">
-<meta name="description" content="Lee multímetros UNI-T (UT61C y compatibles) desde el navegador por USB, sin instalar nada.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="UNI-T Web">
+<meta property="og:locale" content="es_ES">
+<meta property="og:url" content="https://fmesasc.github.io/uni-t-web/">
+<meta property="og:title" content="UNI-T Web · Tu multímetro UNI-T en el navegador">
+<meta property="og:description" content="Lee multímetros UNI-T (UT61C, UT61E, UT60E, UT61E+ y compatibles) desde el navegador por USB. Gráfica en vivo, grabación, alarmas y exportación a CSV y PNG. Gratis, sin instalar nada, en Windows, Linux y Mac.">
+<meta property="og:image" content="https://fmesasc.github.io/uni-t-web/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Pantalla de UNI-T Web con la lectura del multímetro y la gráfica en vivo">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="UNI-T Web · Tu multímetro UNI-T en el navegador">
+<meta name="twitter:description" content="Lee multímetros UNI-T (UT61C, UT61E, UT60E, UT61E+ y compatibles) desde el navegador por USB. Gráfica en vivo, grabación, alarmas y exportación a CSV y PNG. Gratis, sin instalar nada, en Windows, Linux y Mac.">
+<meta name="twitter:image" content="https://fmesasc.github.io/uni-t-web/og.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Person",
+      "@id": "https://fmesasc.com/#person",
+      "name": "Francisco Mesa",
+      "url": "https://fmesasc.com",
+      "sameAs": ["https://github.com/fmesasc"]
+    },
+    {
+      "@type": "WebApplication",
+      "@id": "https://fmesasc.github.io/uni-t-web/#app",
+      "name": "UNI-T Web",
+      "url": "https://fmesasc.github.io/uni-t-web/",
+      "description": "Lee multímetros UNI-T (UT61C, UT61E, UT60E, UT61E+ y compatibles) desde el navegador por USB. Gráfica en vivo, grabación, alarmas y exportación a CSV y PNG. Gratis, sin instalar nada, en Windows, Linux y Mac.",
+      "applicationCategory": "UtilitiesApplication",
+      "applicationSubCategory": "Software para multímetros",
+      "operatingSystem": "Windows, Linux, macOS, ChromeOS (Chrome, Edge, Brave u Opera)",
+      "browserRequirements": "Requiere WebHID o Web Serial (Chrome, Edge, Brave u Opera)",
+      "inLanguage": "es",
+      "isAccessibleForFree": true,
+      "license": "https://opensource.org/licenses/MIT",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+      "image": "https://fmesasc.github.io/uni-t-web/og.png",
+      "screenshot": "https://fmesasc.github.io/uni-t-web/og.png",
+      "featureList": ["Lectura en directo por USB (WebHID y Web Serial)", "Gráfica en vivo con zoom", "Grabación de sesiones", "Alarmas por umbral", "Clasificación de componentes por tolerancia", "Invertir polaridad", "Modo relativo", "Exportar a CSV, JSON y PNG", "Abrir CSV guardados", "Funciona sin conexión"],
+      "author": { "@id": "https://fmesasc.com/#person" },
+      "creator": { "@id": "https://fmesasc.com/#person" },
+      "codeRepository": "https://github.com/fmesasc/uni-t-web"
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "¿Cómo conecto un UNI-T UT61C al ordenador sin el software oficial?",
+           "acceptedAnswer": { "@type": "Answer", "text": "Conecta el cable USB del multímetro, abre UNI-T Web en Chrome o Edge, elige el modelo y el tipo de cable y pulsa Conectar. En el multímetro, mantén pulsado REL hasta que aparezca RS232 en la pantalla." } },
+        { "@type": "Question", "name": "¿Funciona en Linux y Mac?",
+           "acceptedAnswer": { "@type": "Answer", "text": "Sí. Funciona en Windows, Linux, macOS y ChromeOS con cualquier navegador basado en Chromium. En Linux puede hacer falta añadir el usuario al grupo dialout o instalar una regla udev." } },
+        { "@type": "Question", "name": "¿Qué multímetros son compatibles?",
+           "acceptedAnswer": { "@type": "Answer", "text": "UNI-T UT61B, UT61C, UT61D, UT61E, UT60A, UT60E, UT61B+, UT61D+, UT61E+ y UT161B/D/E, con el cable UT-D04 (USB HID) o con un adaptador USB-serie (PL2303, CH340, CP210x, FTDI)." } },
+        { "@type": "Question", "name": "¿Dónde se guardan los datos?",
+           "acceptedAnswer": { "@type": "Answer", "text": "Solo en tu navegador (IndexedDB). Nada se envía a ningún servidor. Puedes exportar las sesiones a CSV, JSON o PNG y hacer copias de seguridad." } }
+      ]
+    }
+  ]
+}
+</script>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <header class="topbar">
-  <div class="brand"><span class="logo"></span>UNI-T <b>Web</b></div>
+  <h1 class="brand"><span class="logo"></span>UNI-T <b>Web</b></h1>
   <div class="conn">
     <span id="state" class="pill">—</span>
     <select id="model" title="Modelo del multímetro"></select>
@@ -208,6 +276,29 @@
       <p class="empty" id="snaps-empty">Aún no hay capturas.</p>
     </div>
   </section>
+  <section class="card about" aria-labelledby="about-title">
+  <details>
+    <summary><h2 id="about-title">Qué es UNI-T Web y cómo se usa</h2></summary>
+    <p><strong>UNI-T Web</strong> es un programa gratuito y de código abierto para leer multímetros <strong>UNI-T</strong>
+      desde el navegador, sin instalar el software oficial. Sustituye a los programas de Windows de UNI-T y funciona igual en
+      <strong>Windows, Linux, macOS y ChromeOS</strong> con Chrome, Edge, Brave u Opera.</p>
+    <h3>Multímetros compatibles</h3>
+    <p>UT61B, UT61C, UT61D (chip FS9922), UT61E (ES51922), UT60A y UT60E (FS9721), y la serie nueva UT61B+, UT61D+, UT61E+,
+      UT161B, UT161D y UT161E. Sirve el cable original <strong>UT-D04</strong> (USB HID) y los adaptadores
+      <strong>USB-serie</strong> con chip PL2303, CH340, CP210x o FTDI.</p>
+    <h3>Cómo empezar</h3>
+    <ol>
+      <li>Conecta el cable del multímetro al ordenador.</li>
+      <li>Elige tu modelo y el tipo de cable arriba y pulsa <em>Conectar</em>.</li>
+      <li>En el multímetro, mantén pulsado <em>REL</em> hasta que aparezca <em>RS232</em> en la pantalla.</li>
+    </ol>
+    <h3>Qué puedes hacer</h3>
+    <p>Ver la lectura en grande, una gráfica en vivo con zoom, estadísticas (mínimo, máximo, media, desviación), grabar
+      sesiones largas como registrador de datos, poner alarmas, clasificar componentes por tolerancia, invertir la polaridad
+      si conectaste las puntas al revés, y exportar a CSV, JSON o PNG. También puedes abrir CSV que ya tenías guardados.
+      Los datos se quedan en tu navegador y la web funciona sin conexión.</p>
+  </details>
+</section>
 </main>
 
 <dialog id="viewer">
@@ -258,9 +349,10 @@
 
 <footer class="foot">
   <span id="usage"></span>
-  <span>Los datos se guardan solo en este navegador · <a href="https://github.com/fmesasc/uni-t-web">Código en GitHub</a></span>
+  <span>Los datos se guardan solo en este navegador · <a href="https://github.com/fmesasc/uni-t-web">Código en GitHub</a> · Hecho por <a href="https://fmesasc.com" rel="author">Francisco Mesa</a></span>
 </footer>
 
+<noscript><p class="card">UNI-T Web necesita JavaScript y un navegador con WebHID o Web Serial (Chrome, Edge, Brave u Opera) para leer el multímetro.</p></noscript>
 <div id="toast" class="toast" hidden></div>
 <script src="js/protocols.js"></script>
 <script src="js/drivers.js"></script>

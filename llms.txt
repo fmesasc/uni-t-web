@@ -1,0 +1,33 @@
+# UNI-T Web
+
+> Programa web gratuito y de código abierto (MIT) para leer multímetros UNI-T desde el navegador por USB, sin instalar el software oficial de Windows. Funciona en Windows, Linux, macOS y ChromeOS con Chrome, Edge, Brave u Opera (WebHID y Web Serial). Todo se ejecuta en el navegador; los datos se guardan solo en local (IndexedDB).
+
+Autor: Francisco Mesa (https://fmesasc.com)
+
+## Uso
+
+- Web: https://fmesasc.github.io/uni-t-web/
+- Demo con simulador, sin multímetro: https://fmesasc.github.io/uni-t-web/?demo
+- Pasos: conectar el cable, elegir modelo y tipo de cable, pulsar Conectar y, en el multímetro, mantener REL hasta que aparezca RS232.
+
+## Multímetros y cables compatibles
+
+- UT61B, UT61C, UT61D (FS9922-DMM4, 2400 baudios)
+- UT61E (ES51922, 19200 baudios, 7O1)
+- UT60A, UT60E (FS9721)
+- UT61B+, UT61D+, UT61E+, UT161B, UT161D, UT161E (puente CP2110)
+- Cable UT-D04 USB HID (CH9325 1a86:e008, HE2325U 04fa:2490) o adaptadores USB-serie PL2303, CH340, CP210x, FTDI
+
+## Funciones
+
+- Lectura en directo, estadísticas (mín, máx, media, σ, pico a pico)
+- Gráfica en vivo con zoom y ventana configurable en minutos
+- Grabación de sesiones (registrador de datos), alarmas, clasificación por tolerancia
+- Invertir polaridad (también sobre lo ya grabado), modo relativo, lectura por voz, pantalla completa
+- Exportar a CSV, JSON y PNG; abrir CSV/TXT/JSON guardados; copia de seguridad
+- Funciona sin conexión
+
+## Documentación
+
+- [README con instrucciones por sistema operativo y solución de problemas](https://github.com/fmesasc/uni-t-web#readme)
+- [Código fuente](https://github.com/fmesasc/uni-t-web)

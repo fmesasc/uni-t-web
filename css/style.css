@@ -69,7 +69,15 @@ main {
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
 }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; min-width: 0; }
-.chart-card, .list-card { grid-column: 1 / -1; }
+.chart-card, .list-card, .about { grid-column: 1 / -1; }
+h1.brand { margin: 0; font-weight: 400; }
+.about summary { cursor: pointer; list-style: none; }
+.about summary::-webkit-details-marker { display: none; }
+.about summary h2 { display: inline; margin: 0; }
+.about summary::after { content: " ▾"; color: var(--muted); font-size: 12px; }
+.about details[open] summary::after { content: " ▴"; }
+.about p, .about ol { color: var(--muted); font-size: 14px; line-height: 1.55; max-width: 75ch; }
+.about h3 { font-size: 14px; margin: 16px 0 4px; }
 @media (max-width: 860px) { main { grid-template-columns: minmax(0, 1fr); padding: 12px 16px 32px; } }
 
 /* LCD */
